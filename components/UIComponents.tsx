@@ -1,103 +1,123 @@
 import React from 'react';
 
-// --- Text Area with Character Count & Validation ---
+// --- 1. THE NEW GRADIENT SLIDER ---
+interface EffortSliderProps {
+  value: number;
+  onChange: (value: number) => void;
+}
+
+export const EffortSlider: React.FC<EffortSliderProps> = ({ value, onChange }) => {
+  // Define the "Heat Map" colors for each level
+  const levels = [
+    { val: 1, label: 'Cool',   color: 'bg-blue-300',   active: 'bg-blue-400',   glow: 'shadow-blue-200' },
+    { val: 2, label: 'Steady', color: 'bg-teal-300',   active: 'bg-teal-400',   glow: 'shadow-teal-200' },
+    { val: 3, label: 'Strong', color: 'bg-green-300',  active: 'bg-green-500',  glow: 'shadow-green-200' },
+    { val: 4, label: 'Heavy',  color: 'bg-orange-300', active: 'bg-orange-500', glow: 'shadow-orange-200' },
+    { val: 5, label: 'Max',    color: 'bg-red-400',    active: 'bg-red-600',    glow: 'shadow-red-200' },
+  ];
+
+  return (
+    <div className="w-full">
+      <div className="flex justify-between items-end mb-2">
+        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider font-sans">
+          Effort Intensity
+        </label>
+        <span className={`text-xs font-bold uppercase tracking-wider transition-colors duration-300 ${value > 0 ? 'text-ink' : 'text-gray-300'}`}>
+          {value === 0 ? 'Select Level' : levels[value - 1].label}
+        </span>
+      </div>
+
+      <div className="flex gap-1 h-12 w-full">
+        {levels.map((level) => {
+          const isActive = value >= level.val;
+          const isExact = value === level.val;
+          
+          return (
+            <button
+              key={level.val}
+              onClick={() => onChange(level.val)}
+              type="button"
+              className={`
+                flex-1 rounded-sm transition-all duration-300 relative overflow-hidden group
+                ${isActive ? level.active : 'bg-gray-100 hover:bg-gray-200'}
+                ${isExact ? `shadow-[0_0_15px_-3px] ${level.glow} z-10 scale-[1.02]` : ''}
+              `}
+            >
+              {/* Internal shine effect for active bars */}
+              {isActive && (
+                <div className="absolute inset-0 bg-white/20 group-hover:bg-white/30 transition-colors" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+      
+      <div className="flex justify-between mt-2 text-[10px] text-gray-300 font-sans font-bold uppercase tracking-widest">
+        <span>Low</span>
+        <span>High Burn</span>
+      </div>
+    </div>
+  );
+};
+
+// --- 2. TEXT AREA (Standardized) ---
 interface TextAreaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
-  label: string;
-  maxLength: number;
-  minLength?: number;
+  label?: string;
   warning?: boolean;
 }
 
-export const TextArea: React.FC<TextAreaProps> = ({ 
-  label, maxLength, minLength = 0, value, warning, className, rows, ...props 
-}) => {
-  const currentLength = (value as string)?.length || 0;
-  
+export const TextArea: React.FC<TextAreaProps> = ({ label, warning, className = '', ...props }) => {
   return (
-    <div className="mb-8 group">
-      <label className="block text-xs font-sans font-semibold tracking-wider text-subtle mb-3 uppercase">
-        {label}
-      </label>
-      <div className="relative">
+    <div className="w-full">
+      {label && (
+        <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 font-sans">
+          {label}
+        </label>
+      )}
+      <div className="relative group">
         <textarea
-          className={`w-full bg-transparent border-l-2 pl-4 py-2 font-serif text-lg leading-relaxed text-ink placeholder-gray-300 focus:outline-none focus:border-ink transition-all resize-none ${warning ? 'border-orange-300' : 'border-border'}`}
-          rows={rows || 3}
-          maxLength={maxLength}
-          value={value}
           {...props}
+          className={`
+            w-full bg-white text-ink font-serif text-lg leading-relaxed
+            border-b-2 transition-all duration-300 outline-none resize-none py-2
+            placeholder:text-gray-200 placeholder:italic
+            ${warning 
+              ? 'border-red-300 focus:border-red-500 bg-red-50/10' 
+              : 'border-gray-100 focus:border-ink'
+            }
+            ${className}
+          `}
         />
-        {/* Character Count Indicator */}
-        <div className={`absolute bottom-2 right-2 text-xs font-sans transition-opacity duration-300 ${currentLength > 0 ? 'opacity-100' : 'opacity-0'}`}>
-          <span className={`${(minLength && currentLength < minLength) ? 'text-orange-400' : 'text-subtle'}`}>
-            {currentLength}
-          </span>
-          <span className="text-gray-200"> / {maxLength}</span>
-        </div>
+        {/* Character Count */}
+        {props.maxLength && (
+          <div className={`
+            absolute bottom-2 right-2 text-[10px] font-mono transition-colors
+            ${(props.value as string)?.length > (props.maxLength * 0.9) ? 'text-orange-500 font-bold' : 'text-gray-200'}
+          `}>
+            {(props.value as string)?.length || 0} / {props.maxLength}
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
-// --- Effort Slider ---
-interface EffortSliderProps {
-  value: number;
-  onChange: (val: number) => void;
-  readOnly?: boolean;
-}
+// --- 3. ACTION BUTTON (Standardized) ---
+interface ActionButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {}
 
-export const EffortSlider: React.FC<EffortSliderProps> = ({ value, onChange, readOnly }) => {
-  const labels = {
-    1: 'Bare Minimum',
-    2: 'Low Energy',
-    3: 'Average Focus',
-    4: 'Strong Effort',
-    5: 'Deep Focus'
-  };
-
+export const ActionButton: React.FC<ActionButtonProps> = ({ children, className = '', disabled, ...props }) => {
   return (
-    <div className="mb-8">
-      <label className="block text-xs font-sans font-semibold tracking-wider text-subtle mb-4 uppercase">
-        Effort Rating <span className="font-normal normal-case text-gray-300 ml-2">(Not mood)</span>
-      </label>
-      <div className="flex flex-col space-y-3">
-        <div className="flex justify-between items-center gap-2">
-          {[1, 2, 3, 4, 5].map((rating) => (
-            <button
-              key={rating}
-              onClick={() => !readOnly && onChange(rating)}
-              disabled={readOnly}
-              className={`
-                h-12 flex-1 rounded-sm border transition-all duration-300
-                ${value === rating 
-                  ? 'bg-ink border-ink text-paper' 
-                  : 'bg-transparent border-border text-subtle hover:border-gray-400'}
-                ${readOnly ? 'cursor-default' : 'cursor-pointer'}
-              `}
-            >
-              <span className="font-serif text-lg">{rating}</span>
-            </button>
-          ))}
-        </div>
-        <div className="text-center font-sans text-sm text-focus h-5">
-           {value ? labels[value as keyof typeof labels] : ''}
-        </div>
-      </div>
-    </div>
+    <button
+      disabled={disabled}
+      className={`
+        px-8 py-4 bg-ink text-white text-xs font-bold uppercase tracking-[0.2em] rounded-sm
+        transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5
+        disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none
+        ${className}
+      `}
+      {...props}
+    >
+      {children}
+    </button>
   );
 };
-
-// --- Primary Action Button ---
-export const ActionButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ children, disabled, className, ...props }) => (
-  <button
-    disabled={disabled}
-    className={`
-      px-8 py-3 bg-ink text-paper font-sans text-sm tracking-wide font-medium rounded shadow-sm
-      transition-all duration-300 transform hover:-translate-y-0.5
-      disabled:opacity-30 disabled:cursor-not-allowed disabled:transform-none
-      ${className}
-    `}
-    {...props}
-  >
-    {children}
-  </button>
-);
