@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import ReactMarkdown from 'react-markdown'; // <--- NEW IMPORT
 import { LedgerEntry, VALIDATION_LIMITS, VAGUE_WORDS } from '../types';
 import { TextArea, EffortSlider, ActionButton } from './UIComponents';
 import { LedgerService, getTodayISO } from '../services/ledgerService';
@@ -14,6 +15,37 @@ interface Props {
 
 const QUICK_TAGS = ['#Coding', '#BugFix', '#Meeting', '#Learning', '#Planning', '#Review'];
 const TIME_LEAKS = ['📱 Social Media', '🎮 Games', '🛌 Napping', '💭 Overthinking', '🔁 Context Switch', '🐌 Procrastination'];
+
+// --- MARKDOWN STYLING CONFIG ---
+// This tells the renderer how to style specific markdown elements
+const markdownComponents = {
+    // Styling for Paragraphs
+    p: ({node, ...props}: any) => <p className="mb-2 leading-relaxed text-ink" {...props} />,
+    // Styling for Bold text
+    strong: ({node, ...props}: any) => <strong className="font-bold text-gray-900" {...props} />,
+    // Styling for Inline Code (e.g. `useEffect`)
+    code: ({node, inline, className, children, ...props}: any) => {
+        // If it's a block of code (triple backticks)
+        if (!inline) {
+             return (
+                <div className="bg-gray-800 text-gray-100 rounded-md p-3 my-3 overflow-x-auto font-mono text-xs border border-gray-700 shadow-sm">
+                    <code className={className} {...props}>{children}</code>
+                </div>
+             );
+        }
+        // If it's inline code (single backtick)
+        return (
+            <code className="bg-gray-100 text-pink-600 font-mono text-sm px-1 py-0.5 rounded border border-gray-200" {...props}>
+                {children}
+            </code>
+        );
+    },
+    // Styling for Lists
+    ul: ({node, ...props}: any) => <ul className="list-disc list-inside my-2 pl-2 space-y-1" {...props} />,
+    ol: ({node, ...props}: any) => <ol className="list-decimal list-inside my-2 pl-2 space-y-1" {...props} />,
+    // Styling for Blockquotes
+    blockquote: ({node, ...props}: any) => <blockquote className="border-l-4 border-gray-300 pl-4 italic text-gray-500 my-4" {...props} />,
+};
 
 export const DailyEntryForm: React.FC<Props> = ({ 
   onSaved, 
@@ -102,7 +134,7 @@ export const DailyEntryForm: React.FC<Props> = ({
       formData.workLog.length > 0 || formData.learningLog.length > 0
   );
 
-  // --- READ ONLY VIEW ---
+  // --- READ ONLY VIEW (With Markdown) ---
   if (!isEditing) {
     return (
       <div className="animate-fade-in space-y-8 pt-4 relative bg-white p-8 rounded-xl border border-border shadow-sm">
@@ -131,16 +163,24 @@ export const DailyEntryForm: React.FC<Props> = ({
             <>
                 <section>
                     <h3 className="text-xs font-sans font-semibold text-subtle uppercase tracking-wider mb-2">Work</h3>
-                    <p className="font-serif text-lg leading-relaxed text-ink whitespace-pre-wrap">{formData.workLog}</p>
+                    <div className="font-serif text-lg leading-relaxed text-ink">
+                        {/* MARKDOWN RENDERER */}
+                        <ReactMarkdown components={markdownComponents}>{formData.workLog}</ReactMarkdown>
+                    </div>
                 </section>
                 <section>
                     <h3 className="text-xs font-sans font-semibold text-subtle uppercase tracking-wider mb-2">Learning</h3>
-                    <p className="font-serif text-lg leading-relaxed text-ink whitespace-pre-wrap">{formData.learningLog}</p>
+                    <div className="font-serif text-lg leading-relaxed text-ink">
+                        <ReactMarkdown components={markdownComponents}>{formData.learningLog}</ReactMarkdown>
+                    </div>
                 </section>
                 <div className="grid grid-cols-2 gap-8">
                     <section>
                         <h3 className="text-xs font-sans font-semibold text-subtle uppercase tracking-wider mb-2">Time Leak</h3>
-                        <p className="font-serif text-lg leading-relaxed text-ink whitespace-pre-wrap">{formData.timeLeakLog}</p>
+                        {/* Time leaks are usually simple, but we allow bolding here too */}
+                        <div className="font-serif text-lg leading-relaxed text-ink">
+                             <ReactMarkdown components={markdownComponents}>{formData.timeLeakLog}</ReactMarkdown>
+                        </div>
                     </section>
                     <section>
                         <h3 className="text-xs font-sans font-semibold text-subtle uppercase tracking-wider mb-2">Effort</h3>
@@ -153,7 +193,9 @@ export const DailyEntryForm: React.FC<Props> = ({
                 {formData.freeThought && (
                 <section className="pt-6 border-t border-border mt-8">
                     <h3 className="text-xs font-sans font-semibold text-subtle uppercase tracking-wider mb-2">Free Thought</h3>
-                    <p className="font-serif text-base italic text-gray-600 whitespace-pre-wrap">{formData.freeThought}</p>
+                    <div className="font-serif text-base italic text-gray-600">
+                        <ReactMarkdown components={markdownComponents}>{formData.freeThought}</ReactMarkdown>
+                    </div>
                 </section>
                 )}
             </>
@@ -162,7 +204,7 @@ export const DailyEntryForm: React.FC<Props> = ({
     );
   }
 
-  // --- EDIT VIEW ---
+  // --- EDIT VIEW (Raw Text) ---
   return (
     <div className="animate-fade-in bg-white p-8 rounded-xl border border-border shadow-sm">
       <div className="mb-8 flex justify-between items-center border-b border-gray-100 pb-4">
@@ -170,7 +212,6 @@ export const DailyEntryForm: React.FC<Props> = ({
         <button onClick={() => setIsEditing(false)} className="text-xs font-bold text-gray-400 hover:text-ink uppercase tracking-wider">Cancel Edit</button>
       </div>
 
-      {/* --- WORK SECTION --- */}
       <div className="mb-2">
          <div className="flex flex-wrap gap-2 mb-3">
             {QUICK_TAGS.map(tag => (
@@ -186,7 +227,7 @@ export const DailyEntryForm: React.FC<Props> = ({
          </div>
          <TextArea
             label="What I actually worked on"
-            placeholder="Be specific. What problem did you solve?"
+            placeholder="Supports Markdown! Use **bold** or `code`..."
             value={formData.workLog}
             onChange={e => setFormData({ ...formData, workLog: e.target.value })}
             maxLength={VALIDATION_LIMITS.WORK_MAX}
@@ -198,7 +239,6 @@ export const DailyEntryForm: React.FC<Props> = ({
       </div>
 
       <div className="grid md:grid-cols-2 gap-8 mt-6">
-        {/* LEFT COL: LEARNING */}
         <TextArea
             label="One thing I learned"
             placeholder="A technical concept or pattern."
@@ -209,14 +249,10 @@ export const DailyEntryForm: React.FC<Props> = ({
             rows={4}
         />
 
-        {/* RIGHT COL: TIME LEAK (Manually Aligned) */}
         <div className="flex flex-col">
-            {/* 1. Label First (For Alignment) */}
             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 font-sans">
                 Where my time leaked
             </label>
-
-            {/* 2. Chips Second */}
             <div className="flex flex-wrap gap-2 mb-2">
                 {TIME_LEAKS.map(leak => (
                     <button
@@ -229,8 +265,6 @@ export const DailyEntryForm: React.FC<Props> = ({
                     </button>
                 ))}
             </div>
-
-            {/* 3. Input Third (Label removed to prevent double label) */}
             <TextArea
                 placeholder="Social media, hesitation?"
                 value={formData.timeLeakLog}
