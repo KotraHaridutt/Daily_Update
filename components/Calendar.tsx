@@ -34,20 +34,20 @@ export const Calendar: React.FC<CalendarProps> = ({ entries, onSelectDate }) => 
   }, []);
 
   const getEntryStyle = (dateStr: string) => {
+    // Safety check if entries is undefined
+    if (!entries) return 'border border-border bg-transparent hover:bg-gray-50';
+
     const entry = entries.find(e => e.date === dateStr);
     if (!entry) return 'border border-border bg-transparent hover:bg-gray-50';
 
     // Calculate density based on content length (Work + Learning)
-    const totalLength = entry.workLog.length + entry.learningLog.length;
+    const totalLength = (entry.workLog?.length || 0) + (entry.learningLog?.length || 0);
     
-    // Granular Density Mapping (Shades of Gray)
-    // Scale adapted for 2000 char max, but keeping lower thresholds accessible 
-    // so previous short entries (approx 300) still look significant.
-    if (totalLength >= 1000) return 'bg-ink border-transparent text-paper';         // Deepest (For the new limit users)
-    if (totalLength >= 600) return 'bg-neutral-600 border-transparent text-white'; // Deep
-    if (totalLength >= 300) return 'bg-neutral-500 border-transparent text-white'; // Medium (Old Max)
-    if (totalLength >= 150) return 'bg-neutral-400 border-transparent text-white'; // Light
-    return 'bg-neutral-300 border-transparent text-ink';                           // Lightest
+    if (totalLength >= 1000) return 'bg-ink border-transparent text-paper';       
+    if (totalLength >= 600) return 'bg-neutral-600 border-transparent text-white'; 
+    if (totalLength >= 300) return 'bg-neutral-500 border-transparent text-white'; 
+    if (totalLength >= 150) return 'bg-neutral-400 border-transparent text-white'; 
+    return 'bg-neutral-300 border-transparent text-ink';                           
   };
 
   return (

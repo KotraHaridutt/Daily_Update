@@ -2,15 +2,27 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { LedgerEntry, VALIDATION_LIMITS, VAGUE_WORDS } from '../types';
 import { TextArea, EffortSlider, ActionButton } from './UIComponents';
 import { LedgerService, getTodayISO } from '../services/ledgerService';
-import { ChevronDown, ChevronUp, Lock, AlertCircle } from 'lucide-react';
+import { ChevronDown, ChevronUp, Lock, AlertCircle, Edit2 } from 'lucide-react';
 
 interface Props {
   onSaved: () => void;
   initialData?: LedgerEntry;
   readOnlyMode?: boolean;
+  targetDate?: string; // The date this entry belongs to
+  allowEdit?: boolean; // Permission to switch from Read to Edit mode
 }
 
-export const DailyEntryForm: React.FC<Props> = ({ onSaved, initialData, readOnlyMode = false }) => {
+export const DailyEntryForm: React.FC<Props> = ({ 
+  onSaved, 
+  initialData, 
+  readOnlyMode = false,
+  targetDate = getTodayISO(),
+  allowEdit = false 
+}) => {
+  const [isSaving, setIsSaving] = useState(false);
+  // Internal state to switch from Read-Only to Edit mode
+  const [isEditing, setIsEditing] = useState(!readOnlyMode);
+  
   const [formData, setFormData] = useState({
     workLog: '',
     learningLog: '',
@@ -40,67 +52,76 @@ export const DailyEntryForm: React.FC<Props> = ({ onSaved, initialData, readOnly
     const workLen = formData.workLog.length;
     const workRemaining = Math.max(0, VALIDATION_LIMITS.WORK_MIN - workLen);
     const workShort = workRemaining > 0;
-    
     const learnEmpty = !formData.learningLog.trim();
     const leakEmpty = !formData.timeLeakLog.trim();
     const effortZero = formData.effortRating === 0;
 
-    // Check words strictly
     const allText = `${formData.workLog} ${formData.learningLog} ${formData.timeLeakLog}`.toLowerCase();
     const words = allText.split(/[\s,.!?]+/);
     const vagueWord = words.find(w => VAGUE_WORDS.includes(w));
     
     const isValid = !workShort && !learnEmpty && !leakEmpty && !effortZero; 
     
-    return { 
-      workShort, 
-      workRemaining,
-      learnEmpty, 
-      leakEmpty, 
-      effortZero, 
-      vagueWord,
-      isValid 
-    };
+    return { workShort, workRemaining, learnEmpty, leakEmpty, effortZero, vagueWord, isValid };
   }, [formData]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setHasAttemptedSubmit(true);
-
     if (!validation.isValid) return;
     
-    LedgerService.saveEntry({
-      date: initialData?.date || getTodayISO(),
-      ...formData
-    });
-    
-    onSaved();
+    setIsSaving(true);
+    try {
+      await LedgerService.saveEntry({
+        date: targetDate, // Use the fixed target date (Today or Yesterday)
+        ...formData
+      });
+      onSaved();
+      // If we were editing inside a modal, switch back to read view might be handled by parent,
+      // but keeping it editable is usually better UX until closed.
+    } catch (error) {
+      alert("Failed to save to cloud. Check console.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const showValidationFeedback = hasAttemptedSubmit || (
-     formData.workLog.length > 0 || formData.learningLog.length > 0
+      formData.workLog.length > 0 || formData.learningLog.length > 0
   );
 
-  if (readOnlyMode) {
+  // --- READ ONLY VIEW ---
+  if (!isEditing) {
     return (
-      <div className="animate-fade-in space-y-8 max-w-2xl mx-auto pt-8">
+      <div className="animate-fade-in space-y-8 max-w-2xl mx-auto pt-8 relative">
         <div className="text-center mb-8">
            <Lock className="w-4 h-4 mx-auto text-subtle mb-2" />
            <p className="text-xs font-sans text-subtle uppercase tracking-widest">Entry Locked</p>
         </div>
+
+        {/* The Magic "EDIT" Button - Only shows if allowed */}
+        {allowEdit && (
+          <button 
+            onClick={() => setIsEditing(true)}
+            className="absolute top-0 right-0 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-ink hover:text-blue-600 transition-colors bg-gray-50 px-3 py-2 rounded-full border border-gray-200"
+          >
+            <Edit2 className="w-3 h-3" />
+            Edit
+          </button>
+        )}
         
         <section>
           <h3 className="text-xs font-sans font-semibold text-subtle uppercase tracking-wider mb-2">Work</h3>
-          <p className="font-serif text-lg leading-relaxed text-ink border-l-2 border-border pl-4">{formData.workLog}</p>
+          <p className="font-serif text-lg leading-relaxed text-ink border-l-2 border-border pl-4 whitespace-pre-wrap">{formData.workLog}</p>
         </section>
 
         <section>
           <h3 className="text-xs font-sans font-semibold text-subtle uppercase tracking-wider mb-2">Learning</h3>
-          <p className="font-serif text-lg leading-relaxed text-ink border-l-2 border-border pl-4">{formData.learningLog}</p>
+          <p className="font-serif text-lg leading-relaxed text-ink border-l-2 border-border pl-4 whitespace-pre-wrap">{formData.learningLog}</p>
         </section>
 
         <section>
           <h3 className="text-xs font-sans font-semibold text-subtle uppercase tracking-wider mb-2">Time Leak</h3>
-          <p className="font-serif text-lg leading-relaxed text-ink border-l-2 border-border pl-4">{formData.timeLeakLog}</p>
+          <p className="font-serif text-lg leading-relaxed text-ink border-l-2 border-border pl-4 whitespace-pre-wrap">{formData.timeLeakLog}</p>
         </section>
         
         <section>
@@ -109,21 +130,32 @@ export const DailyEntryForm: React.FC<Props> = ({ onSaved, initialData, readOnly
              {[...Array(formData.effortRating)].map((_, i) => (
                 <div key={i} className="h-2 w-8 bg-ink rounded-sm" />
              ))}
+             {[...Array(5 - formData.effortRating)].map((_, i) => (
+                <div key={`empty-${i}`} className="h-2 w-8 bg-gray-200 rounded-sm" />
+             ))}
           </div>
         </section>
 
         {formData.freeThought && (
            <section className="pt-4 border-t border-border mt-8">
             <h3 className="text-xs font-sans font-semibold text-subtle uppercase tracking-wider mb-2">Free Thought</h3>
-            <p className="font-serif text-base italic text-gray-600">{formData.freeThought}</p>
+            <p className="font-serif text-base italic text-gray-600 whitespace-pre-wrap">{formData.freeThought}</p>
           </section>
         )}
       </div>
     );
   }
 
+  // --- EDIT VIEW (No Date Picker!) ---
   return (
     <div className="max-w-xl mx-auto animate-fade-in">
+      {/* Visual Indicator of what date we are editing */}
+      <div className="mb-6 text-center">
+        <span className="inline-block px-3 py-1 bg-gray-100 text-gray-500 text-xs font-mono rounded-full">
+          Editing Log for: {targetDate}
+        </span>
+      </div>
+
       <TextArea
         label="What I actually worked on"
         placeholder="Be specific. No 'general coding'. What problem did you solve?"
@@ -173,18 +205,17 @@ export const DailyEntryForm: React.FC<Props> = ({ onSaved, initialData, readOnly
         {showFreeThought && (
           <div className="mt-4 animate-slide-down">
              <textarea
-                className="w-full bg-paper border border-border p-4 font-serif text-base text-ink placeholder-gray-300 focus:outline-none focus:border-ink rounded-sm"
-                rows={4}
-                placeholder="Unstructured thoughts, rants, or ideas..."
-                value={formData.freeThought}
-                onChange={e => setFormData({...formData, freeThought: e.target.value})}
+               className="w-full bg-paper border border-border p-4 font-serif text-base text-ink placeholder-gray-300 focus:outline-none focus:border-ink rounded-sm"
+               rows={4}
+               placeholder="Unstructured thoughts, rants, or ideas..."
+               value={formData.freeThought}
+               onChange={e => setFormData({...formData, freeThought: e.target.value})}
              />
           </div>
         )}
       </div>
 
       <div className="flex flex-col items-center gap-4 mt-12 mb-24">
-        {/* Helper Messages */}
         {!validation.isValid && showValidationFeedback && (
            <div className="w-full bg-gray-50 p-4 rounded-sm border border-gray-100 mb-2">
              <div className="flex items-center gap-2 mb-2 text-ink font-sans text-xs font-bold uppercase tracking-wider">
@@ -206,13 +237,25 @@ export const DailyEntryForm: React.FC<Props> = ({ onSaved, initialData, readOnly
           </p>
         )}
 
-        <ActionButton 
-          onClick={handleSubmit} 
-          disabled={!validation.isValid}
-          className="w-full sm:w-auto"
-        >
-          {initialData ? 'Update Entry' : 'Commit Entry'}
-        </ActionButton>
+        <div className="flex gap-4 w-full justify-center">
+            {/* If we are "backfilling" via modal, show a Cancel button to go back to read-only */}
+            {allowEdit && readOnlyMode && (
+                <button 
+                    onClick={() => setIsEditing(false)}
+                    className="px-6 py-3 text-sm font-bold text-gray-500 hover:text-ink transition-colors"
+                >
+                    Cancel
+                </button>
+            )}
+
+            <ActionButton 
+            onClick={handleSubmit} 
+            disabled={!validation.isValid || isSaving}
+            className="w-full sm:w-auto"
+            >
+            {isSaving ? 'Saving...' : (initialData ? 'Update Entry' : 'Commit Entry')}
+            </ActionButton>
+        </div>
       </div>
     </div>
   );

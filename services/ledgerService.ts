@@ -1,104 +1,105 @@
 import { LedgerEntry, DailyStats } from '../types';
+import { supabase } from './supabaseClient';
 
-const STORAGE_KEY = 'daily_execution_ledger_v1';
-
-/**
- * DATABASE SCHEMA (Conceptual - SQLite)
- * 
- * TABLE entries (
- *   id TEXT PRIMARY KEY,
- *   date TEXT NOT NULL UNIQUE, -- YYYY-MM-DD
- *   work_log TEXT NOT NULL,
- *   learning_log TEXT NOT NULL,
- *   time_leak_log TEXT NOT NULL,
- *   effort_rating INTEGER NOT NULL CHECK(effort_rating BETWEEN 1 AND 5),
- *   free_thought TEXT,
- *   created_at INTEGER NOT NULL,
- *   updated_at INTEGER NOT NULL
- * );
- */
-
-// Helper to generate UUID-like string
-const generateId = () => Math.random().toString(36).substr(2, 9);
-
+// Helper to get today's date in YYYY-MM-DD
 export const getTodayISO = (): string => {
   const local = new Date();
   local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
   return local.toJSON().slice(0, 10);
 };
 
-// Simulate API calls
 export const LedgerService = {
-  getAllEntries: (): LedgerEntry[] => {
-    try {
-      const data = localStorage.getItem(STORAGE_KEY);
-      return data ? JSON.parse(data) : [];
-    } catch (e) {
-      console.error("Failed to load entries", e);
+  // FETCH ALL ENTRIES (Async)
+  getAllEntries: async (): Promise<LedgerEntry[]> => {
+    const { data, error } = await supabase
+      .from('daily_entries')
+      .select('*')
+      .order('date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching entries:', error);
       return [];
     }
+
+    // Map database columns (snake_case) to app types (camelCase)
+    return data.map((row: any) => ({
+      id: row.id,
+      date: row.date,
+      workLog: row.work_log,
+      learningLog: row.learning_log,
+      timeLeakLog: row.time_leak_log,
+      effortRating: row.effort_rating,
+      freeThought: row.free_thought,
+      createdAt: new Date(row.created_at).getTime(),
+      updatedAt: new Date(row.created_at).getTime(), // Supabase handles timestamps
+    }));
   },
 
-  getEntryByDate: (date: string): LedgerEntry | undefined => {
-    const entries = LedgerService.getAllEntries();
-    return entries.find(e => e.date === date);
+  // GET SINGLE ENTRY
+  getEntryByDate: async (date: string): Promise<LedgerEntry | undefined> => {
+    const { data, error } = await supabase
+      .from('daily_entries')
+      .select('*')
+      .eq('date', date)
+      .single();
+
+    if (error || !data) return undefined;
+
+    return {
+      id: data.id,
+      date: data.date,
+      workLog: data.work_log,
+      learningLog: data.learning_log,
+      timeLeakLog: data.time_leak_log,
+      effortRating: data.effort_rating,
+      freeThought: data.free_thought,
+      createdAt: new Date(data.created_at).getTime(),
+      updatedAt: new Date(data.created_at).getTime(),
+    };
   },
 
-  saveEntry: (entry: Omit<LedgerEntry, 'id' | 'createdAt' | 'updatedAt'>): LedgerEntry => {
-    const entries = LedgerService.getAllEntries();
-    const now = Date.now();
-    
-    // Check if update or create
-    const existingIndex = entries.findIndex(e => e.date === entry.date);
-    
-    let savedEntry: LedgerEntry;
+  // SAVE OR UPDATE (Upsert)
+  saveEntry: async (entry: Omit<LedgerEntry, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> => {
+    // Map app types to database columns
+    const dbPayload = {
+      date: entry.date,
+      work_log: entry.workLog,
+      learning_log: entry.learningLog,
+      time_leak_log: entry.timeLeakLog,
+      effort_rating: entry.effortRating,
+      free_thought: entry.freeThought,
+    };
 
-    if (existingIndex >= 0) {
-      // Update
-      savedEntry = {
-        ...entries[existingIndex],
-        ...entry,
-        updatedAt: now,
-      };
-      entries[existingIndex] = savedEntry;
-    } else {
-      // Create
-      savedEntry = {
-        ...entry,
-        id: generateId(),
-        createdAt: now,
-        updatedAt: now,
-      };
-      entries.push(savedEntry);
+    // Upsert: Updates if date exists, Inserts if it doesn't
+    const { error } = await supabase
+      .from('daily_entries')
+      .upsert(dbPayload, { onConflict: 'date' });
+
+    if (error) {
+      console.error('Error saving entry:', error);
+      throw error;
     }
-
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-    return savedEntry;
   },
 
-  getStats: (): DailyStats => {
-    const entries = LedgerService.getAllEntries();
+  // CALCULATE STATS (Now Async)
+  getStats: async (): Promise<DailyStats> => {
+    const entries = await LedgerService.getAllEntries();
     const sortedDates = entries.map(e => e.date).sort();
     
     if (sortedDates.length === 0) {
       return { currentStreak: 0, longestStreak: 0, totalEntries: 0, completionRate: 0 };
     }
 
-    // Calculate Streaks
+    // --- Same Logic as before, just reused ---
     let maxStreak = 0;
     let currentStreak = 0;
     let tempStreak = 0;
     
-    // Naive streak calculation (assuming sorted dates)
     const today = getTodayISO();
-    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-    
-    // Convert to Set for easy lookup
     const dateSet = new Set(sortedDates);
     
-    // Calculate Current Streak
+    // Current Streak
     let checkDate = new Date();
-    // If today is filled, start from today, else start from yesterday
     if (!dateSet.has(today)) {
        checkDate.setDate(checkDate.getDate() - 1);
     }
@@ -113,8 +114,7 @@ export const LedgerService = {
       }
     }
 
-    // Calculate Longest Streak
-    // Convert dates to timestamps to check continuity
+    // Longest Streak
     if (sortedDates.length > 0) {
         tempStreak = 1;
         maxStreak = 1;
@@ -124,16 +124,13 @@ export const LedgerService = {
             const diffTime = Math.abs(curr.getTime() - prev.getTime());
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
 
-            if (diffDays === 1) {
-                tempStreak++;
-            } else {
-                tempStreak = 1;
-            }
+            if (diffDays === 1) tempStreak++;
+            else tempStreak = 1;
+            
             if (tempStreak > maxStreak) maxStreak = tempStreak;
         }
     }
 
-    // Completion Rate (based on first entry date)
     const firstDate = new Date(sortedDates[0]);
     const now = new Date();
     const totalDaysSinceStart = Math.ceil((now.getTime() - firstDate.getTime()) / (1000 * 3600 * 24)) || 1;
