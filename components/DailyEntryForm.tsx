@@ -8,8 +8,8 @@ interface Props {
   onSaved: () => void;
   initialData?: LedgerEntry;
   readOnlyMode?: boolean;
-  targetDate?: string; // The date this entry belongs to
-  allowEdit?: boolean; // Permission to switch from Read to Edit mode
+  targetDate?: string;
+  allowEdit?: boolean;
 }
 
 export const DailyEntryForm: React.FC<Props> = ({ 
@@ -20,8 +20,7 @@ export const DailyEntryForm: React.FC<Props> = ({
   allowEdit = false 
 }) => {
   const [isSaving, setIsSaving] = useState(false);
-  // Internal state to switch from Read-Only to Edit mode
-  const [isEditing, setIsEditing] = useState(!readOnlyMode);
+  const [isEditing, setIsEditing] = useState(false); // Default to closed
   
   const [formData, setFormData] = useState({
     workLog: '',
@@ -34,7 +33,9 @@ export const DailyEntryForm: React.FC<Props> = ({
   const [showFreeThought, setShowFreeThought] = useState(false);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
+  // --- LOGIC FIX: View vs Edit State ---
   useEffect(() => {
+    // 1. Populate Data
     if (initialData) {
       setFormData({
         workLog: initialData.workLog,
@@ -44,10 +45,32 @@ export const DailyEntryForm: React.FC<Props> = ({
         freeThought: initialData.freeThought || ''
       });
       if (initialData.freeThought) setShowFreeThought(true);
+    } else {
+      // Reset if empty
+      setFormData({
+        workLog: '',
+        learningLog: '',
+        timeLeakLog: '',
+        effortRating: 0,
+        freeThought: ''
+      });
+      setShowFreeThought(false);
     }
-  }, [initialData]);
 
-  // Real-time validation
+    // 2. DECIDE MODE: "View First" vs "Write First"
+    const isToday = targetDate === getTodayISO();
+
+    if (isToday) {
+        // Today: Always start open to write
+        setIsEditing(true);
+    } else {
+        // Past (Yesterday or older): Always start CLOSED (Read Only).
+        // User must explicitly click "Edit" button to change it.
+        setIsEditing(false);
+    }
+
+  }, [initialData, targetDate]);
+
   const validation = useMemo(() => {
     const workLen = formData.workLog.length;
     const workRemaining = Math.max(0, VALIDATION_LIMITS.WORK_MIN - workLen);
@@ -72,12 +95,12 @@ export const DailyEntryForm: React.FC<Props> = ({
     setIsSaving(true);
     try {
       await LedgerService.saveEntry({
-        date: targetDate, // Use the fixed target date (Today or Yesterday)
+        date: targetDate,
         ...formData
       });
       onSaved();
-      // If we were editing inside a modal, switch back to read view might be handled by parent,
-      // but keeping it editable is usually better UX until closed.
+      // NOTE: useEffect will trigger after save and snap 'isEditing' back to false (Read Mode)
+      // This gives a nice "Saved and Locked" feeling.
     } catch (error) {
       alert("Failed to save to cloud. Check console.");
     } finally {
@@ -89,71 +112,92 @@ export const DailyEntryForm: React.FC<Props> = ({
       formData.workLog.length > 0 || formData.learningLog.length > 0
   );
 
-  // --- READ ONLY VIEW ---
+  // --- READ ONLY VIEW (Default for Past Dates) ---
   if (!isEditing) {
     return (
-      <div className="animate-fade-in space-y-8 max-w-2xl mx-auto pt-8 relative">
-        <div className="text-center mb-8">
-           <Lock className="w-4 h-4 mx-auto text-subtle mb-2" />
-           <p className="text-xs font-sans text-subtle uppercase tracking-widest">Entry Locked</p>
+      <div className="animate-fade-in space-y-8 pt-4 relative bg-white p-8 rounded-xl border border-border shadow-sm">
+        <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+           <div className="flex items-center gap-2 text-subtle">
+             <Lock className="w-4 h-4" />
+             <span className="text-xs font-sans uppercase tracking-widest">
+                {allowEdit ? "Locked Entry" : "Entry Locked"}
+             </span>
+           </div>
+           
+           {/* THE EDIT BUTTON: Only visible if allowEdit is TRUE (Today/Yesterday) */}
+           {allowEdit && (
+            <button 
+              onClick={() => setIsEditing(true)}
+              className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-ink hover:text-blue-600 transition-colors bg-gray-50 px-3 py-1.5 rounded-full border border-gray-200"
+            >
+              <Edit2 className="w-3 h-3" />
+              Edit
+            </button>
+           )}
         </div>
-
-        {/* The Magic "EDIT" Button - Only shows if allowed */}
-        {allowEdit && (
-          <button 
-            onClick={() => setIsEditing(true)}
-            className="absolute top-0 right-0 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-ink hover:text-blue-600 transition-colors bg-gray-50 px-3 py-2 rounded-full border border-gray-200"
-          >
-            <Edit2 className="w-3 h-3" />
-            Edit
-          </button>
-        )}
         
-        <section>
-          <h3 className="text-xs font-sans font-semibold text-subtle uppercase tracking-wider mb-2">Work</h3>
-          <p className="font-serif text-lg leading-relaxed text-ink border-l-2 border-border pl-4 whitespace-pre-wrap">{formData.workLog}</p>
-        </section>
+        {formData.workLog === '' ? (
+            <div className="text-center py-12 text-gray-400 font-serif italic">
+                No entry for this date.
+            </div>
+        ) : (
+            <>
+                <section>
+                <h3 className="text-xs font-sans font-semibold text-subtle uppercase tracking-wider mb-2">Work</h3>
+                <p className="font-serif text-lg leading-relaxed text-ink whitespace-pre-wrap">{formData.workLog}</p>
+                </section>
 
-        <section>
-          <h3 className="text-xs font-sans font-semibold text-subtle uppercase tracking-wider mb-2">Learning</h3>
-          <p className="font-serif text-lg leading-relaxed text-ink border-l-2 border-border pl-4 whitespace-pre-wrap">{formData.learningLog}</p>
-        </section>
+                <section>
+                <h3 className="text-xs font-sans font-semibold text-subtle uppercase tracking-wider mb-2">Learning</h3>
+                <p className="font-serif text-lg leading-relaxed text-ink whitespace-pre-wrap">{formData.learningLog}</p>
+                </section>
 
-        <section>
-          <h3 className="text-xs font-sans font-semibold text-subtle uppercase tracking-wider mb-2">Time Leak</h3>
-          <p className="font-serif text-lg leading-relaxed text-ink border-l-2 border-border pl-4 whitespace-pre-wrap">{formData.timeLeakLog}</p>
-        </section>
-        
-        <section>
-          <h3 className="text-xs font-sans font-semibold text-subtle uppercase tracking-wider mb-2">Effort</h3>
-          <div className="flex gap-1">
-             {[...Array(formData.effortRating)].map((_, i) => (
-                <div key={i} className="h-2 w-8 bg-ink rounded-sm" />
-             ))}
-             {[...Array(5 - formData.effortRating)].map((_, i) => (
-                <div key={`empty-${i}`} className="h-2 w-8 bg-gray-200 rounded-sm" />
-             ))}
-          </div>
-        </section>
+                <div className="grid grid-cols-2 gap-8">
+                    <section>
+                    <h3 className="text-xs font-sans font-semibold text-subtle uppercase tracking-wider mb-2">Time Leak</h3>
+                    <p className="font-serif text-lg leading-relaxed text-ink whitespace-pre-wrap">{formData.timeLeakLog}</p>
+                    </section>
+                    
+                    <section>
+                    <h3 className="text-xs font-sans font-semibold text-subtle uppercase tracking-wider mb-2">Effort</h3>
+                    <div className="flex gap-1 mt-1">
+                        {[...Array(formData.effortRating)].map((_, i) => (
+                            <div key={i} className="h-2 w-8 bg-ink rounded-sm" />
+                        ))}
+                        {[...Array(5 - formData.effortRating)].map((_, i) => (
+                            <div key={`empty-${i}`} className="h-2 w-8 bg-gray-200 rounded-sm" />
+                        ))}
+                    </div>
+                    </section>
+                </div>
 
-        {formData.freeThought && (
-           <section className="pt-4 border-t border-border mt-8">
-            <h3 className="text-xs font-sans font-semibold text-subtle uppercase tracking-wider mb-2">Free Thought</h3>
-            <p className="font-serif text-base italic text-gray-600 whitespace-pre-wrap">{formData.freeThought}</p>
-          </section>
+                {formData.freeThought && (
+                <section className="pt-6 border-t border-border mt-8">
+                    <h3 className="text-xs font-sans font-semibold text-subtle uppercase tracking-wider mb-2">Free Thought</h3>
+                    <p className="font-serif text-base italic text-gray-600 whitespace-pre-wrap">{formData.freeThought}</p>
+                </section>
+                )}
+            </>
         )}
       </div>
     );
   }
 
-  // --- EDIT VIEW (No Date Picker!) ---
+  // --- EDIT VIEW ---
   return (
-    <div className="max-w-xl mx-auto animate-fade-in">
-      {/* Visual Indicator of what date we are editing */}
-      <div className="mb-6 text-center">
-        <span className="inline-block px-3 py-1 bg-gray-100 text-gray-500 text-xs font-mono rounded-full">
-          Editing Log for: {targetDate}
+    <div className="animate-fade-in bg-white p-8 rounded-xl border border-border shadow-sm">
+      <div className="mb-8 flex justify-between items-center border-b border-gray-100 pb-4">
+        <span className="text-sm font-mono text-gray-500 bg-gray-50 px-3 py-1 rounded-md">
+          {targetDate}
         </span>
+        
+        {/* Cancel Button: Takes you back to Read View */}
+        <button 
+        onClick={() => setIsEditing(false)}
+        className="text-xs font-bold text-gray-400 hover:text-ink uppercase tracking-wider"
+        >
+        Cancel Edit
+        </button>
       </div>
 
       <TextArea
@@ -163,34 +207,40 @@ export const DailyEntryForm: React.FC<Props> = ({
         onChange={e => setFormData({ ...formData, workLog: e.target.value })}
         maxLength={VALIDATION_LIMITS.WORK_MAX}
         minLength={VALIDATION_LIMITS.WORK_MIN}
-        rows={12}
+        rows={10}
         autoFocus
         warning={showValidationFeedback && validation.workShort}
       />
 
-      <TextArea
-        label="One thing I learned or realized"
-        placeholder="A technical concept, a pattern, or a mistake avoided."
-        value={formData.learningLog}
-        onChange={e => setFormData({ ...formData, learningLog: e.target.value })}
-        maxLength={VALIDATION_LIMITS.LEARN_MAX}
-        warning={showValidationFeedback && validation.learnEmpty}
-      />
-
-      <TextArea
-        label="Where my time leaked"
-        placeholder="Social media, over-optimizing, hesitation?"
-        value={formData.timeLeakLog}
-        onChange={e => setFormData({ ...formData, timeLeakLog: e.target.value })}
-        maxLength={VALIDATION_LIMITS.LEAK_MAX}
-        warning={showValidationFeedback && validation.leakEmpty}
-      />
-
-      <div className={showValidationFeedback && validation.effortZero ? "p-2 border border-orange-200 rounded-lg bg-orange-50/50" : ""}>
-        <EffortSlider
-          value={formData.effortRating}
-          onChange={val => setFormData({ ...formData, effortRating: val })}
+      <div className="grid md:grid-cols-2 gap-6">
+        <TextArea
+            label="One thing I learned"
+            placeholder="A technical concept or pattern."
+            value={formData.learningLog}
+            onChange={e => setFormData({ ...formData, learningLog: e.target.value })}
+            maxLength={VALIDATION_LIMITS.LEARN_MAX}
+            warning={showValidationFeedback && validation.learnEmpty}
+            rows={4}
         />
+
+        <TextArea
+            label="Where my time leaked"
+            placeholder="Social media, hesitation?"
+            value={formData.timeLeakLog}
+            onChange={e => setFormData({ ...formData, timeLeakLog: e.target.value })}
+            maxLength={VALIDATION_LIMITS.LEAK_MAX}
+            warning={showValidationFeedback && validation.leakEmpty}
+            rows={4}
+        />
+      </div>
+
+      <div className="mt-6 mb-8">
+        <div className={showValidationFeedback && validation.effortZero ? "p-2 border border-orange-200 rounded-lg bg-orange-50/50" : ""}>
+            <EffortSlider
+            value={formData.effortRating}
+            onChange={val => setFormData({ ...formData, effortRating: val })}
+            />
+        </div>
       </div>
 
       <div className="mb-8 border-t border-border pt-4">
@@ -215,47 +265,23 @@ export const DailyEntryForm: React.FC<Props> = ({
         )}
       </div>
 
-      <div className="flex flex-col items-center gap-4 mt-12 mb-24">
+      <div className="flex flex-col items-center gap-4 mt-8">
         {!validation.isValid && showValidationFeedback && (
            <div className="w-full bg-gray-50 p-4 rounded-sm border border-gray-100 mb-2">
              <div className="flex items-center gap-2 mb-2 text-ink font-sans text-xs font-bold uppercase tracking-wider">
                <AlertCircle className="w-3 h-3" />
                Pending Requirements
              </div>
-             <ul className="text-xs text-subtle space-y-1 list-disc list-inside">
-               {validation.workShort && <li>Work log needs {validation.workRemaining} more characters</li>}
-               {validation.learnEmpty && <li>Learning log is required</li>}
-               {validation.leakEmpty && <li>Time leak log is required</li>}
-               {validation.effortZero && <li>Effort rating must be selected</li>}
-             </ul>
            </div>
         )}
         
-        {validation.vagueWord && (
-          <p className="text-xs text-orange-600 font-sans font-medium">
-            Try to be more specific than "{validation.vagueWord}".
-          </p>
-        )}
-
-        <div className="flex gap-4 w-full justify-center">
-            {/* If we are "backfilling" via modal, show a Cancel button to go back to read-only */}
-            {allowEdit && readOnlyMode && (
-                <button 
-                    onClick={() => setIsEditing(false)}
-                    className="px-6 py-3 text-sm font-bold text-gray-500 hover:text-ink transition-colors"
-                >
-                    Cancel
-                </button>
-            )}
-
-            <ActionButton 
-            onClick={handleSubmit} 
-            disabled={!validation.isValid || isSaving}
-            className="w-full sm:w-auto"
-            >
-            {isSaving ? 'Saving...' : (initialData ? 'Update Entry' : 'Commit Entry')}
-            </ActionButton>
-        </div>
+        <ActionButton 
+          onClick={handleSubmit} 
+          disabled={!validation.isValid || isSaving}
+          className="w-full"
+        >
+          {isSaving ? 'Saving...' : (initialData ? 'Update Entry' : 'Commit Entry')}
+        </ActionButton>
       </div>
     </div>
   );
