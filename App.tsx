@@ -3,6 +3,7 @@ import { LedgerEntry, DailyStats } from './types';
 import { LedgerService, getTodayISO } from './services/ledgerService';
 import { DailyEntryForm } from './components/DailyEntryForm';
 import { Calendar } from './components/Calendar';
+import { RightSidebar } from './components/RightSidebar';
 import { Loader2, LayoutDashboard, Calendar as CalIcon } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -10,12 +11,11 @@ const App: React.FC = () => {
   
   // SELECTION STATE
   const todayISO = getTodayISO();
-  const [selectedDate, setSelectedDate] = useState<string>(todayISO); // Default to Today
+  const [selectedDate, setSelectedDate] = useState<string>(todayISO);
   
   const [allEntries, setAllEntries] = useState<LedgerEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Computed: The entry for the currently selected date (if it exists)
   const currentEntry = allEntries.find(e => e.date === selectedDate);
 
   const loadData = async () => {
@@ -37,10 +37,9 @@ const App: React.FC = () => {
   }, []);
 
   const handleSave = () => {
-    loadData(); // Reload data to update streaks/stats
+    loadData();
   };
 
-  // 2-Day Rule Check
   const checkIfEditable = (dateStr: string) => {
     const today = new Date(todayISO);
     const target = new Date(dateStr);
@@ -58,53 +57,42 @@ const App: React.FC = () => {
   }
 
   return (
-    // MAIN CONTAINER: Flex layout for Side-by-Side
-    <div className="min-h-screen bg-gray-50 text-ink flex flex-col md:flex-row font-sans selection:bg-gray-200">
+    // LAYOUT: 3 Columns on Large Screens (Sidebar | Main | HUD)
+    <div className="min-h-screen bg-gray-50 text-ink flex flex-col lg:flex-row font-sans selection:bg-gray-200">
       
-      {/* --- LEFT SIDEBAR (Navigation & Stats) --- */}
-      <aside className="w-full md:w-80 bg-white border-r border-gray-200 flex-shrink-0 h-auto md:h-screen sticky top-0 overflow-y-auto">
-        <div className="p-6 md:p-8">
+      {/* --- COLUMN 1: LEFT SIDEBAR (Nav) --- */}
+      <aside className="w-full lg:w-72 bg-white border-r border-gray-200 flex-shrink-0 h-auto lg:h-screen sticky top-0 overflow-y-auto">
+        <div className="p-6">
           <header className="mb-8">
              <div className="flex items-center gap-2 mb-1 text-gray-400">
                 <LayoutDashboard className="w-4 h-4" />
                 <span className="text-[10px] font-bold uppercase tracking-widest">Dashboard</span>
              </div>
-             <h1 className="text-xl font-bold tracking-tight text-gray-900">My Daily Updates</h1>
+             <h1 className="text-lg font-bold tracking-tight text-gray-900">My Daily Updates</h1>
              <p className="text-xs text-gray-500 mt-2 font-serif italic">"Consistency is quiet."</p>
           </header>
 
-          {/* CALENDAR WIDGET */}
           <div className="mb-8">
             <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
                 <CalIcon className="w-3 h-3" /> Navigation
             </h2>
-            <div className="bg-white">
-                <Calendar entries={allEntries} onSelectDate={setSelectedDate} />
-            </div>
-            <p className="text-[10px] text-gray-400 mt-2 text-center">
-                Selected: <span className="text-ink font-mono">{selectedDate}</span>
-            </p>
+            <Calendar entries={allEntries} onSelectDate={setSelectedDate} />
           </div>
 
-          {/* STATS WIDGET */}
           {stats && (
             <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
               <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Month Stats</h2>
               <div className="space-y-3">
                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600">Current Streak</span>
+                    <span className="text-gray-600">Streak</span>
                     <span className="font-bold font-mono">{stats.currentStreak} 🔥</span>
-                 </div>
-                 <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600">Best Streak</span>
-                    <span className="font-bold font-mono">{stats.longestStreak} 🏆</span>
                  </div>
                  <div className="flex justify-between items-center text-sm">
                     <span className="text-gray-600">Completion</span>
                     <span className="font-bold font-mono">{stats.completionRate}%</span>
                  </div>
                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600">Total Entries</span>
+                    <span className="text-gray-600">Total</span>
                     <span className="font-bold font-mono">{stats.totalEntries}</span>
                  </div>
               </div>
@@ -113,10 +101,9 @@ const App: React.FC = () => {
         </div>
       </aside>
 
-      {/* --- RIGHT MAIN AREA (The Workspace) --- */}
-      <main className="flex-grow p-4 md:p-12 overflow-y-auto bg-gray-50">
-        <div className="max-w-3xl mx-auto">
-            {/* Dynamic Header for the Content Area */}
+      {/* --- COLUMN 2: CENTER STAGE (Writing Form) --- */}
+      <main className="flex-grow p-4 md:p-8 lg:p-12 overflow-y-auto bg-gray-50">
+        <div className="max-w-2xl mx-auto">
             <div className="mb-8 flex items-baseline justify-between">
                 <h2 className="text-2xl font-serif text-gray-900">
                     {selectedDate === todayISO ? "Today's Log" : `Log for ${selectedDate}`}
@@ -130,17 +117,27 @@ const App: React.FC = () => {
                 </div>
             </div>
 
-            {/* THE FORM (Updates based on selectedDate) */}
             <DailyEntryForm 
-                key={selectedDate} // CRITICAL: Forces React to reset the form when date changes
+                key={selectedDate} 
                 targetDate={selectedDate}
                 initialData={currentEntry}
                 onSaved={handleSave}
-                readOnlyMode={!checkIfEditable(selectedDate) && !!currentEntry} // Read only if old date AND entry exists
+                readOnlyMode={!checkIfEditable(selectedDate) && !!currentEntry} 
                 allowEdit={checkIfEditable(selectedDate)}
             />
         </div>
       </main>
+
+      {/* --- COLUMN 3: RIGHT SIDEBAR (The HUD) --- */}
+      <aside className="w-full lg:w-80 bg-gray-50/50 border-l border-gray-200 flex-shrink-0 h-auto lg:h-screen lg:sticky lg:top-0 overflow-y-auto p-6 hidden xl:block">
+         <RightSidebar currentDate={selectedDate} allEntries={allEntries} />
+      </aside>
+      
+      {/* Mobile/Tablet Fallback for HUD (Show at bottom if screen is small) */}
+      <div className="xl:hidden p-6 border-t border-gray-200">
+         <RightSidebar currentDate={selectedDate} allEntries={allEntries} />
+      </div>
+
     </div>
   );
 };
