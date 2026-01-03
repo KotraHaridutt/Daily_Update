@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import './index.css'
+
 import { LedgerEntry, DailyStats } from './types';
 import { LedgerService, getTodayISO } from './services/ledgerService';
 import { DailyEntryForm } from './components/DailyEntryForm';
