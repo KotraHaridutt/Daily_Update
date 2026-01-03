@@ -1,20 +1,38 @@
 import React, { useState, useEffect } from 'react';
+import './index.css'
 import { LedgerEntry, DailyStats } from './types';
 import { LedgerService, getTodayISO } from './services/ledgerService';
 import { DailyEntryForm } from './components/DailyEntryForm';
 import { Calendar } from './components/Calendar';
 import { RightSidebar } from './components/RightSidebar';
-import { Loader2, LayoutDashboard, Calendar as CalIcon } from 'lucide-react';
+import { Loader2, LayoutDashboard, Calendar as CalIcon, Moon, Sun } from 'lucide-react';
 
 const App: React.FC = () => {
   const [stats, setStats] = useState<DailyStats | null>(null);
-  
-  // SELECTION STATE
   const todayISO = getTodayISO();
   const [selectedDate, setSelectedDate] = useState<string>(todayISO);
-  
   const [allEntries, setAllEntries] = useState<LedgerEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // DARK MODE STATE
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('theme') === 'dark' || 
+        (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    }
+    return false;
+  });
+
+  // Apply Dark Mode Class to HTML tag
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDark]);
 
   const currentEntry = allEntries.find(e => e.date === selectedDate);
 
@@ -50,26 +68,35 @@ const App: React.FC = () => {
 
   if (isLoading && allEntries.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-ink">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 text-ink dark:text-gray-100">
         <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
       </div>
     );
   }
 
   return (
-    // LAYOUT: 3 Columns on Large Screens (Sidebar | Main | HUD)
-    <div className="min-h-screen bg-gray-50 text-ink flex flex-col lg:flex-row font-sans selection:bg-gray-200">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-ink dark:text-gray-100 flex flex-col lg:flex-row font-sans selection:bg-green-200 dark:selection:bg-green-900 transition-colors duration-300">
       
-      {/* --- COLUMN 1: LEFT SIDEBAR (Nav) --- */}
-      <aside className="w-full lg:w-72 bg-white border-r border-gray-200 flex-shrink-0 h-auto lg:h-screen sticky top-0 overflow-y-auto">
+      {/* --- COLUMN 1: LEFT SIDEBAR --- */}
+      <aside className="w-full lg:w-72 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex-shrink-0 h-auto lg:h-screen sticky top-0 overflow-y-auto transition-colors duration-300">
         <div className="p-6">
-          <header className="mb-8">
-             <div className="flex items-center gap-2 mb-1 text-gray-400">
-                <LayoutDashboard className="w-4 h-4" />
-                <span className="text-[10px] font-bold uppercase tracking-widest">Dashboard</span>
+          <header className="mb-8 flex justify-between items-start">
+             <div>
+                <div className="flex items-center gap-2 mb-1 text-gray-400">
+                    <LayoutDashboard className="w-4 h-4" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest">Dashboard</span>
+                </div>
+                <h1 className="text-lg font-bold tracking-tight text-gray-900 dark:text-white">My Daily Updates</h1>
+                <p className="text-xs text-gray-500 mt-2 font-serif italic">"Consistency is quiet."</p>
              </div>
-             <h1 className="text-lg font-bold tracking-tight text-gray-900">My Daily Updates</h1>
-             <p className="text-xs text-gray-500 mt-2 font-serif italic">"Consistency is quiet."</p>
+             {/* THEME TOGGLE */}
+             <button 
+                onClick={() => setIsDark(!isDark)}
+                className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500 transition-colors"
+                title="Toggle Dark Mode"
+             >
+                {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+             </button>
           </header>
 
           <div className="mb-8">
@@ -80,20 +107,20 @@ const App: React.FC = () => {
           </div>
 
           {stats && (
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 border border-gray-100 dark:border-gray-700 transition-colors">
               <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Month Stats</h2>
               <div className="space-y-3">
                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600">Streak</span>
-                    <span className="font-bold font-mono">{stats.currentStreak} 🔥</span>
+                    <span className="text-gray-600 dark:text-gray-400">Streak</span>
+                    <span className="font-bold font-mono text-gray-900 dark:text-gray-200">{stats.currentStreak} 🔥</span>
                  </div>
                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600">Completion</span>
-                    <span className="font-bold font-mono">{stats.completionRate}%</span>
+                    <span className="text-gray-600 dark:text-gray-400">Completion</span>
+                    <span className="font-bold font-mono text-gray-900 dark:text-gray-200">{stats.completionRate}%</span>
                  </div>
                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600">Total</span>
-                    <span className="font-bold font-mono">{stats.totalEntries}</span>
+                    <span className="text-gray-600 dark:text-gray-400">Total</span>
+                    <span className="font-bold font-mono text-gray-900 dark:text-gray-200">{stats.totalEntries}</span>
                  </div>
               </div>
             </div>
@@ -101,16 +128,16 @@ const App: React.FC = () => {
         </div>
       </aside>
 
-      {/* --- COLUMN 2: CENTER STAGE (Writing Form) --- */}
-      <main className="flex-grow p-4 md:p-8 lg:p-12 overflow-y-auto bg-gray-50">
+      {/* --- COLUMN 2: CENTER STAGE --- */}
+      <main className="flex-grow p-4 md:p-8 lg:p-12 overflow-y-auto bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
         <div className="max-w-2xl mx-auto">
             <div className="mb-8 flex items-baseline justify-between">
-                <h2 className="text-2xl font-serif text-gray-900">
+                <h2 className="text-2xl font-serif text-gray-900 dark:text-gray-100">
                     {selectedDate === todayISO ? "Today's Log" : `Log for ${selectedDate}`}
                 </h2>
                 <div className="text-xs text-gray-400 uppercase tracking-wider font-bold">
                     {checkIfEditable(selectedDate) ? (
-                        <span className="text-green-600 flex items-center gap-1">● Editable</span>
+                        <span className="text-green-600 dark:text-green-400 flex items-center gap-1">● Editable</span>
                     ) : (
                         <span className="text-gray-400 flex items-center gap-1">🔒 Read Only</span>
                     )}
@@ -128,13 +155,12 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {/* --- COLUMN 3: RIGHT SIDEBAR (The HUD) --- */}
-      <aside className="w-full lg:w-80 bg-gray-50/50 border-l border-gray-200 flex-shrink-0 h-auto lg:h-screen lg:sticky lg:top-0 overflow-y-auto p-6 hidden xl:block">
+      {/* --- COLUMN 3: RIGHT SIDEBAR --- */}
+      <aside className="w-full lg:w-80 bg-gray-50/50 dark:bg-gray-900/50 border-l border-gray-200 dark:border-gray-800 flex-shrink-0 h-auto lg:h-screen lg:sticky lg:top-0 overflow-y-auto p-6 hidden xl:block transition-colors duration-300">
          <RightSidebar currentDate={selectedDate} allEntries={allEntries} />
       </aside>
       
-      {/* Mobile/Tablet Fallback for HUD (Show at bottom if screen is small) */}
-      <div className="xl:hidden p-6 border-t border-gray-200">
+      <div className="xl:hidden p-6 border-t border-gray-200 dark:border-gray-800 dark:bg-gray-900">
          <RightSidebar currentDate={selectedDate} allEntries={allEntries} />
       </div>
 

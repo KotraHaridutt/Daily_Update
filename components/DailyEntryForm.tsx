@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import ReactMarkdown from 'react-markdown'; // <--- NEW IMPORT
+import ReactMarkdown from 'react-markdown';
 import { LedgerEntry, VALIDATION_LIMITS, VAGUE_WORDS } from '../types';
 import { TextArea, EffortSlider, ActionButton } from './UIComponents';
 import { LedgerService, getTodayISO } from '../services/ledgerService';
@@ -16,35 +16,31 @@ interface Props {
 const QUICK_TAGS = ['#Coding', '#BugFix', '#Meeting', '#Learning', '#Planning', '#Review'];
 const TIME_LEAKS = ['📱 Social Media', '🎮 Games', '🛌 Napping', '💭 Overthinking', '🔁 Context Switch', '🐌 Procrastination'];
 
-// --- MARKDOWN STYLING CONFIG ---
-// This tells the renderer how to style specific markdown elements
+// --- MARKDOWN STYLING CONFIG (Dark Mode Compatible) ---
 const markdownComponents = {
-    // Styling for Paragraphs
-    p: ({node, ...props}: any) => <p className="mb-2 leading-relaxed text-ink" {...props} />,
-    // Styling for Bold text
-    strong: ({node, ...props}: any) => <strong className="font-bold text-gray-900" {...props} />,
-    // Styling for Inline Code (e.g. `useEffect`)
-    code: ({node, inline, className, children, ...props}: any) => {
-        // If it's a block of code (triple backticks)
-        if (!inline) {
+    p: ({node, ...props}: any) => <p className="mb-2 leading-relaxed text-ink dark:text-gray-200" {...props} />,
+    strong: ({node, ...props}: any) => <strong className="font-bold text-gray-900 dark:text-white" {...props} />,
+    ul: ({node, ...props}: any) => <ul className="list-disc list-inside my-2 pl-2 space-y-1 dark:text-gray-300" {...props} />,
+    ol: ({node, ...props}: any) => <ol className="list-decimal list-inside my-2 pl-2 space-y-1 dark:text-gray-300" {...props} />,
+    blockquote: ({node, ...props}: any) => <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic text-gray-500 dark:text-gray-400 my-4" {...props} />,
+    
+    code: ({node, className, children, ...props}: any) => {
+        const content = String(children);
+        const isBlock = content.includes('\n'); 
+
+        if (isBlock) {
              return (
-                <div className="bg-gray-800 text-gray-100 rounded-md p-3 my-3 overflow-x-auto font-mono text-xs border border-gray-700 shadow-sm">
+                <div className="bg-gray-800 dark:bg-gray-950 text-gray-100 rounded-md p-3 my-3 overflow-x-auto font-mono text-xs border border-gray-700 shadow-sm">
                     <code className={className} {...props}>{children}</code>
                 </div>
              );
         }
-        // If it's inline code (single backtick)
         return (
-            <code className="bg-gray-100 text-pink-600 font-mono text-sm px-1 py-0.5 rounded border border-gray-200" {...props}>
+            <code className="bg-gray-100 dark:bg-gray-800 text-pink-600 dark:text-pink-400 font-mono text-sm px-1 py-0.5 rounded border border-gray-200 dark:border-gray-700" {...props}>
                 {children}
             </code>
         );
-    },
-    // Styling for Lists
-    ul: ({node, ...props}: any) => <ul className="list-disc list-inside my-2 pl-2 space-y-1" {...props} />,
-    ol: ({node, ...props}: any) => <ol className="list-decimal list-inside my-2 pl-2 space-y-1" {...props} />,
-    // Styling for Blockquotes
-    blockquote: ({node, ...props}: any) => <blockquote className="border-l-4 border-gray-300 pl-4 italic text-gray-500 my-4" {...props} />,
+    }
 };
 
 export const DailyEntryForm: React.FC<Props> = ({ 
@@ -134,12 +130,12 @@ export const DailyEntryForm: React.FC<Props> = ({
       formData.workLog.length > 0 || formData.learningLog.length > 0
   );
 
-  // --- READ ONLY VIEW (With Markdown) ---
+  // --- READ ONLY VIEW ---
   if (!isEditing) {
     return (
-      <div className="animate-fade-in space-y-8 pt-4 relative bg-white p-8 rounded-xl border border-border shadow-sm">
-        <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
-           <div className="flex items-center gap-2 text-subtle">
+      <div className="animate-fade-in space-y-8 pt-4 relative bg-white dark:bg-gray-900 p-8 rounded-xl border border-border dark:border-gray-800 shadow-sm transition-colors duration-300">
+        <div className="flex justify-between items-center mb-6 border-b border-gray-100 dark:border-gray-800 pb-4">
+           <div className="flex items-center gap-2 text-subtle dark:text-gray-500">
              <Lock className="w-4 h-4" />
              <span className="text-xs font-sans uppercase tracking-widest">
                 {allowEdit ? "Locked Entry" : "Entry Locked"}
@@ -149,7 +145,7 @@ export const DailyEntryForm: React.FC<Props> = ({
            {allowEdit && (
             <button 
               onClick={() => setIsEditing(true)}
-              className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-ink hover:text-blue-600 transition-colors bg-gray-50 px-3 py-1.5 rounded-full border border-gray-200"
+              className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-ink dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors bg-gray-50 dark:bg-gray-800 px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-700"
             >
               <Edit2 className="w-3 h-3" />
               Edit
@@ -162,38 +158,36 @@ export const DailyEntryForm: React.FC<Props> = ({
         ) : (
             <>
                 <section>
-                    <h3 className="text-xs font-sans font-semibold text-subtle uppercase tracking-wider mb-2">Work</h3>
-                    <div className="font-serif text-lg leading-relaxed text-ink">
-                        {/* MARKDOWN RENDERER */}
+                    <h3 className="text-xs font-sans font-semibold text-subtle dark:text-gray-500 uppercase tracking-wider mb-2">Work</h3>
+                    <div className="font-serif text-lg leading-relaxed text-ink dark:text-gray-200">
                         <ReactMarkdown components={markdownComponents}>{formData.workLog}</ReactMarkdown>
                     </div>
                 </section>
                 <section>
-                    <h3 className="text-xs font-sans font-semibold text-subtle uppercase tracking-wider mb-2">Learning</h3>
-                    <div className="font-serif text-lg leading-relaxed text-ink">
+                    <h3 className="text-xs font-sans font-semibold text-subtle dark:text-gray-500 uppercase tracking-wider mb-2">Learning</h3>
+                    <div className="font-serif text-lg leading-relaxed text-ink dark:text-gray-200">
                         <ReactMarkdown components={markdownComponents}>{formData.learningLog}</ReactMarkdown>
                     </div>
                 </section>
                 <div className="grid grid-cols-2 gap-8">
                     <section>
-                        <h3 className="text-xs font-sans font-semibold text-subtle uppercase tracking-wider mb-2">Time Leak</h3>
-                        {/* Time leaks are usually simple, but we allow bolding here too */}
-                        <div className="font-serif text-lg leading-relaxed text-ink">
+                        <h3 className="text-xs font-sans font-semibold text-subtle dark:text-gray-500 uppercase tracking-wider mb-2">Time Leak</h3>
+                        <div className="font-serif text-lg leading-relaxed text-ink dark:text-gray-200">
                              <ReactMarkdown components={markdownComponents}>{formData.timeLeakLog}</ReactMarkdown>
                         </div>
                     </section>
                     <section>
-                        <h3 className="text-xs font-sans font-semibold text-subtle uppercase tracking-wider mb-2">Effort</h3>
+                        <h3 className="text-xs font-sans font-semibold text-subtle dark:text-gray-500 uppercase tracking-wider mb-2">Effort</h3>
                         <div className="flex gap-1 mt-1">
-                            {[...Array(formData.effortRating)].map((_, i) => <div key={i} className="h-2 w-8 bg-ink rounded-sm" />)}
-                            {[...Array(5 - formData.effortRating)].map((_, i) => <div key={`empty-${i}`} className="h-2 w-8 bg-gray-200 rounded-sm" />)}
+                            {[...Array(formData.effortRating)].map((_, i) => <div key={i} className="h-2 w-8 bg-ink dark:bg-gray-200 rounded-sm" />)}
+                            {[...Array(5 - formData.effortRating)].map((_, i) => <div key={`empty-${i}`} className="h-2 w-8 bg-gray-200 dark:bg-gray-700 rounded-sm" />)}
                         </div>
                     </section>
                 </div>
                 {formData.freeThought && (
-                <section className="pt-6 border-t border-border mt-8">
-                    <h3 className="text-xs font-sans font-semibold text-subtle uppercase tracking-wider mb-2">Free Thought</h3>
-                    <div className="font-serif text-base italic text-gray-600">
+                <section className="pt-6 border-t border-border dark:border-gray-800 mt-8">
+                    <h3 className="text-xs font-sans font-semibold text-subtle dark:text-gray-500 uppercase tracking-wider mb-2">Free Thought</h3>
+                    <div className="font-serif text-base italic text-gray-600 dark:text-gray-400">
                         <ReactMarkdown components={markdownComponents}>{formData.freeThought}</ReactMarkdown>
                     </div>
                 </section>
@@ -204,12 +198,12 @@ export const DailyEntryForm: React.FC<Props> = ({
     );
   }
 
-  // --- EDIT VIEW (Raw Text) ---
+  // --- EDIT VIEW ---
   return (
-    <div className="animate-fade-in bg-white p-8 rounded-xl border border-border shadow-sm">
-      <div className="mb-8 flex justify-between items-center border-b border-gray-100 pb-4">
-        <span className="text-sm font-mono text-gray-500 bg-gray-50 px-3 py-1 rounded-md">{targetDate}</span>
-        <button onClick={() => setIsEditing(false)} className="text-xs font-bold text-gray-400 hover:text-ink uppercase tracking-wider">Cancel Edit</button>
+    <div className="animate-fade-in bg-white dark:bg-gray-900 p-8 rounded-xl border border-border dark:border-gray-800 shadow-sm transition-colors duration-300">
+      <div className="mb-8 flex justify-between items-center border-b border-gray-100 dark:border-gray-800 pb-4">
+        <span className="text-sm font-mono text-gray-500 bg-gray-50 dark:bg-gray-800 px-3 py-1 rounded-md">{targetDate}</span>
+        <button onClick={() => setIsEditing(false)} className="text-xs font-bold text-gray-400 hover:text-ink dark:hover:text-gray-200 uppercase tracking-wider">Cancel Edit</button>
       </div>
 
       <div className="mb-2">
@@ -218,7 +212,7 @@ export const DailyEntryForm: React.FC<Props> = ({
                 <button
                     key={tag}
                     onClick={() => appendText('workLog', tag)}
-                    className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold uppercase tracking-wider rounded-md hover:bg-blue-100 transition-colors"
+                    className="flex items-center gap-1 px-2 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 text-[10px] font-bold uppercase tracking-wider rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
                 >
                     <Tag className="w-3 h-3" />
                     {tag}
@@ -258,7 +252,7 @@ export const DailyEntryForm: React.FC<Props> = ({
                     <button
                         key={leak}
                         onClick={() => appendText('timeLeakLog', leak)}
-                        className="flex items-center gap-1 px-2 py-1 bg-red-50 text-red-600 text-[10px] font-bold uppercase tracking-wider rounded-md hover:bg-red-100 transition-colors"
+                        className="flex items-center gap-1 px-2 py-1 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300 text-[10px] font-bold uppercase tracking-wider rounded-md hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
                     >
                         <Zap className="w-3 h-3" />
                         {leak}
@@ -277,7 +271,7 @@ export const DailyEntryForm: React.FC<Props> = ({
       </div>
 
       <div className="mt-8 mb-8">
-        <div className={showValidationFeedback && validation.effortZero ? "p-2 border border-orange-200 rounded-lg bg-orange-50/50" : ""}>
+        <div className={showValidationFeedback && validation.effortZero ? "p-2 border border-orange-200 dark:border-orange-800 rounded-lg bg-orange-50/50 dark:bg-orange-900/20" : ""}>
             <EffortSlider
             value={formData.effortRating}
             onChange={val => setFormData({ ...formData, effortRating: val })}
@@ -285,10 +279,10 @@ export const DailyEntryForm: React.FC<Props> = ({
         </div>
       </div>
 
-      <div className="mb-8 border-t border-border pt-4">
+      <div className="mb-8 border-t border-border dark:border-gray-800 pt-4">
         <button
           onClick={() => setShowFreeThought(!showFreeThought)}
-          className="flex items-center text-xs font-sans font-semibold text-subtle hover:text-ink transition-colors"
+          className="flex items-center text-xs font-sans font-semibold text-subtle dark:text-gray-500 hover:text-ink dark:hover:text-gray-200 transition-colors"
         >
           {showFreeThought ? <ChevronUp className="w-3 h-3 mr-1"/> : <ChevronDown className="w-3 h-3 mr-1"/>}
           Free Thought (Optional)
@@ -297,7 +291,7 @@ export const DailyEntryForm: React.FC<Props> = ({
         {showFreeThought && (
           <div className="mt-4 animate-slide-down">
              <textarea
-               className="w-full bg-paper border border-border p-4 font-serif text-base text-ink placeholder-gray-300 focus:outline-none focus:border-ink rounded-sm"
+               className="w-full bg-paper dark:bg-gray-800 border border-border dark:border-gray-700 p-4 font-serif text-base text-ink dark:text-gray-100 placeholder-gray-300 dark:placeholder-gray-600 focus:outline-none focus:border-ink dark:focus:border-gray-400 rounded-sm"
                rows={4}
                placeholder="Unstructured thoughts, rants, or ideas..."
                value={formData.freeThought}
@@ -309,8 +303,8 @@ export const DailyEntryForm: React.FC<Props> = ({
 
       <div className="flex flex-col items-center gap-4 mt-8">
         {!validation.isValid && showValidationFeedback && (
-           <div className="w-full bg-gray-50 p-4 rounded-sm border border-gray-100 mb-2">
-             <div className="flex items-center gap-2 mb-2 text-ink font-sans text-xs font-bold uppercase tracking-wider">
+           <div className="w-full bg-gray-50 dark:bg-gray-800 p-4 rounded-sm border border-gray-100 dark:border-gray-700 mb-2">
+             <div className="flex items-center gap-2 mb-2 text-ink dark:text-gray-200 font-sans text-xs font-bold uppercase tracking-wider">
                <AlertCircle className="w-3 h-3" />
                Pending Requirements
              </div>

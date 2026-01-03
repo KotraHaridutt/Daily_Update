@@ -1,19 +1,18 @@
 import React from 'react';
 
-// --- 1. THE NEW GRADIENT SLIDER ---
+// --- 1. THE NEW GRADIENT SLIDER (Dark Mode Compatible) ---
 interface EffortSliderProps {
   value: number;
   onChange: (value: number) => void;
 }
 
 export const EffortSlider: React.FC<EffortSliderProps> = ({ value, onChange }) => {
-  // Define the "Heat Map" colors for each level
   const levels = [
-    { val: 1, label: 'Cool',   color: 'bg-blue-300',   active: 'bg-blue-400',   glow: 'shadow-blue-200' },
-    { val: 2, label: 'Steady', color: 'bg-teal-300',   active: 'bg-teal-400',   glow: 'shadow-teal-200' },
-    { val: 3, label: 'Strong', color: 'bg-green-300',  active: 'bg-green-500',  glow: 'shadow-green-200' },
-    { val: 4, label: 'Heavy',  color: 'bg-orange-300', active: 'bg-orange-500', glow: 'shadow-orange-200' },
-    { val: 5, label: 'Max',    color: 'bg-red-400',    active: 'bg-red-600',    glow: 'shadow-red-200' },
+    { val: 1, label: 'Cool',   color: 'bg-blue-300 dark:bg-blue-700',   active: 'bg-blue-400 dark:bg-blue-500',   glow: 'shadow-blue-200 dark:shadow-blue-900' },
+    { val: 2, label: 'Steady', color: 'bg-teal-300 dark:bg-teal-700',   active: 'bg-teal-400 dark:bg-teal-500',   glow: 'shadow-teal-200 dark:shadow-teal-900' },
+    { val: 3, label: 'Strong', color: 'bg-green-300 dark:bg-green-700',  active: 'bg-green-500 dark:bg-green-500',  glow: 'shadow-green-200 dark:shadow-green-900' },
+    { val: 4, label: 'Heavy',  color: 'bg-orange-300 dark:bg-orange-700', active: 'bg-orange-500 dark:bg-orange-500', glow: 'shadow-orange-200 dark:shadow-orange-900' },
+    { val: 5, label: 'Max',    color: 'bg-red-400 dark:bg-red-700',    active: 'bg-red-600 dark:bg-red-500',    glow: 'shadow-red-200 dark:shadow-red-900' },
   ];
 
   return (
@@ -22,7 +21,7 @@ export const EffortSlider: React.FC<EffortSliderProps> = ({ value, onChange }) =
         <label className="text-xs font-bold text-gray-400 uppercase tracking-wider font-sans">
           Effort Intensity
         </label>
-        <span className={`text-xs font-bold uppercase tracking-wider transition-colors duration-300 ${value > 0 ? 'text-ink' : 'text-gray-300'}`}>
+        <span className={`text-xs font-bold uppercase tracking-wider transition-colors duration-300 ${value > 0 ? 'text-ink dark:text-gray-100' : 'text-gray-300 dark:text-gray-600'}`}>
           {value === 0 ? 'Select Level' : levels[value - 1].label}
         </span>
       </div>
@@ -39,11 +38,10 @@ export const EffortSlider: React.FC<EffortSliderProps> = ({ value, onChange }) =
               type="button"
               className={`
                 flex-1 rounded-sm transition-all duration-300 relative overflow-hidden group
-                ${isActive ? level.active : 'bg-gray-100 hover:bg-gray-200'}
+                ${isActive ? level.active : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}
                 ${isExact ? `shadow-[0_0_15px_-3px] ${level.glow} z-10 scale-[1.02]` : ''}
               `}
             >
-              {/* Internal shine effect for active bars */}
               {isActive && (
                 <div className="absolute inset-0 bg-white/20 group-hover:bg-white/30 transition-colors" />
               )}
@@ -52,7 +50,7 @@ export const EffortSlider: React.FC<EffortSliderProps> = ({ value, onChange }) =
         })}
       </div>
       
-      <div className="flex justify-between mt-2 text-[10px] text-gray-300 font-sans font-bold uppercase tracking-widest">
+      <div className="flex justify-between mt-2 text-[10px] text-gray-300 dark:text-gray-600 font-sans font-bold uppercase tracking-widest">
         <span>Low</span>
         <span>High Burn</span>
       </div>
@@ -60,7 +58,7 @@ export const EffortSlider: React.FC<EffortSliderProps> = ({ value, onChange }) =
   );
 };
 
-// --- 2. TEXT AREA (Standardized) ---
+// --- 2. TEXT AREA (Dark Mode Compatible) ---
 interface TextAreaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
   warning?: boolean;
@@ -78,12 +76,19 @@ export const TextArea: React.FC<TextAreaProps> = ({ label, warning, className = 
         <textarea
           {...props}
           className={`
-            w-full bg-white text-ink font-serif text-lg leading-relaxed
+            w-full font-serif text-lg leading-relaxed
             border-b-2 transition-all duration-300 outline-none resize-none py-2
-            placeholder:text-gray-200 placeholder:italic
+            placeholder:text-gray-200 dark:placeholder:text-gray-700 placeholder:italic
+            
+            /* Light Mode Colors */
+            bg-white text-ink border-gray-100 focus:border-ink
+            
+            /* Dark Mode Colors */
+            dark:bg-gray-900 dark:text-gray-100 dark:border-gray-800 dark:focus:border-gray-400
+            
             ${warning 
-              ? 'border-red-300 focus:border-red-500 bg-red-50/10' 
-              : 'border-gray-100 focus:border-ink'
+              ? 'border-red-300 focus:border-red-500 bg-red-50/10 dark:bg-red-900/10' 
+              : ''
             }
             ${className}
           `}
@@ -92,7 +97,7 @@ export const TextArea: React.FC<TextAreaProps> = ({ label, warning, className = 
         {props.maxLength && (
           <div className={`
             absolute bottom-2 right-2 text-[10px] font-mono transition-colors
-            ${(props.value as string)?.length > (props.maxLength * 0.9) ? 'text-orange-500 font-bold' : 'text-gray-200'}
+            ${(props.value as string)?.length > (props.maxLength * 0.9) ? 'text-orange-500 font-bold' : 'text-gray-200 dark:text-gray-700'}
           `}>
             {(props.value as string)?.length || 0} / {props.maxLength}
           </div>
@@ -102,7 +107,7 @@ export const TextArea: React.FC<TextAreaProps> = ({ label, warning, className = 
   );
 };
 
-// --- 3. ACTION BUTTON (Standardized) ---
+// --- 3. ACTION BUTTON (Dark Mode Compatible) ---
 interface ActionButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {}
 
 export const ActionButton: React.FC<ActionButtonProps> = ({ children, className = '', disabled, ...props }) => {
@@ -110,9 +115,13 @@ export const ActionButton: React.FC<ActionButtonProps> = ({ children, className 
     <button
       disabled={disabled}
       className={`
-        px-8 py-4 bg-ink text-white text-xs font-bold uppercase tracking-[0.2em] rounded-sm
+        px-8 py-4 text-xs font-bold uppercase tracking-[0.2em] rounded-sm
         transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5
         disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none
+        
+        bg-ink text-white 
+        dark:bg-gray-100 dark:text-gray-900 dark:hover:shadow-white/10
+        
         ${className}
       `}
       {...props}
