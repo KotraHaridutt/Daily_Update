@@ -4,8 +4,9 @@ import { LedgerService, getTodayISO } from './services/ledgerService';
 import { DailyEntryForm } from './components/DailyEntryForm';
 import { Calendar } from './components/Calendar';
 import { RightSidebar } from './components/RightSidebar';
-import { CommandPalette } from './components/CommandPalette'; // <--- NEW IMPORT
-import { Loader2, LayoutDashboard, Calendar as CalIcon, Moon, Sun, Search as SearchIcon } from 'lucide-react';
+import { CommandPalette } from './components/CommandPalette';
+import { CheatSheet } from './components/CheatSheet'; // <--- NEW IMPORT
+import { Loader2, LayoutDashboard, Calendar as CalIcon, Moon, Sun, Search as SearchIcon, Maximize2, Minimize2 } from 'lucide-react';
 
 const App: React.FC = () => {
   const [stats, setStats] = useState<DailyStats | null>(null);
@@ -14,9 +15,11 @@ const App: React.FC = () => {
   const [allEntries, setAllEntries] = useState<LedgerEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // --- SEARCH STATE ---
+  // --- UI STATES ---
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [searchMatches, setSearchMatches] = useState<string[]>([]); // Dates that match search
+  const [isCheatSheetOpen, setIsCheatSheetOpen] = useState(false); // Cheat Sheet
+  const [isZenMode, setIsZenMode] = useState(false); // Zen Mode
+  const [searchMatches, setSearchMatches] = useState<string[]>([]);
 
   // DARK MODE STATE
   const [isDark, setIsDark] = useState(() => {
@@ -36,6 +39,44 @@ const App: React.FC = () => {
       localStorage.setItem('theme', 'light');
     }
   }, [isDark]);
+
+  // --- GLOBAL KEYBOARD SHORTCUTS ---
+  useEffect(() => {
+    const handleGlobalKeys = (e: KeyboardEvent) => {
+        // Ignore navigation keys if typing in an input/textarea
+        const isTyping = (e.target as HTMLElement).tagName === 'TEXTAREA' || (e.target as HTMLElement).tagName === 'INPUT';
+
+        // Level 1: Time Travel (Arrow Keys)
+        if (!isTyping) {
+            if (e.key === 'ArrowLeft') {
+                const prev = new Date(selectedDate);
+                prev.setDate(prev.getDate() - 1);
+                setSelectedDate(prev.toISOString().split('T')[0]);
+            }
+            if (e.key === 'ArrowRight') {
+                const next = new Date(selectedDate);
+                next.setDate(next.getDate() + 1);
+                setSelectedDate(next.toISOString().split('T')[0]);
+            }
+            if (e.key.toLowerCase() === 't') {
+                setSelectedDate(todayISO);
+            }
+        }
+
+        // Level 4: Zen Mode (Ctrl + \)
+        if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
+            setIsZenMode(prev => !prev);
+        }
+
+        // Cheat Sheet (?)
+        if (e.key === '?' && e.shiftKey && !isTyping) {
+            setIsCheatSheetOpen(true);
+        }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeys);
+    return () => window.removeEventListener('keydown', handleGlobalKeys);
+  }, [selectedDate, todayISO]);
 
   const currentEntry = allEntries.find(e => e.date === selectedDate);
 
@@ -80,7 +121,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-ink dark:text-gray-100 flex flex-col lg:flex-row font-sans selection:bg-green-200 dark:selection:bg-green-900 transition-colors duration-300">
       
-      {/* --- COMMAND PALETTE (Global) --- */}
+      {/* GLOBAL OVERLAYS */}
       <CommandPalette 
         isOpen={isSearchOpen} 
         setIsOpen={setIsSearchOpen}
@@ -88,10 +129,18 @@ const App: React.FC = () => {
         onSelectDate={setSelectedDate}
         onSearchChange={setSearchMatches}
       />
+      <CheatSheet 
+        isOpen={isCheatSheetOpen}
+        onClose={() => setIsCheatSheetOpen(false)}
+      />
 
-      {/* --- LEFT SIDEBAR --- */}
-      <aside className="w-full lg:w-72 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex-shrink-0 h-auto lg:h-screen sticky top-0 overflow-y-auto transition-colors duration-300">
-        <div className="p-6">
+      {/* --- LEFT SIDEBAR (Hidden in Zen Mode) --- */}
+      <aside className={`
+        w-full lg:w-72 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex-shrink-0 
+        h-auto lg:h-screen sticky top-0 overflow-y-auto transition-all duration-500 ease-in-out
+        ${isZenMode ? '-ml-72 opacity-0 lg:w-0 overflow-hidden' : 'opacity-100'}
+      `}>
+        <div className="p-6 min-w-[18rem]"> {/* min-w prevents layout squishing during transition */}
           <header className="mb-8 flex justify-between items-start">
              <div>
                 <div className="flex items-center gap-2 mb-1 text-gray-400">
@@ -101,7 +150,6 @@ const App: React.FC = () => {
                 <h1 className="text-lg font-bold tracking-tight text-gray-900 dark:text-white">My Daily Updates</h1>
              </div>
              <div className="flex gap-2">
-                {/* Search Trigger Button */}
                 <button 
                     onClick={() => setIsSearchOpen(true)}
                     className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500 transition-colors"
@@ -123,7 +171,6 @@ const App: React.FC = () => {
             <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
                 <CalIcon className="w-3 h-3" /> Navigation
             </h2>
-            {/* Pass search matches to Calendar */}
             <Calendar 
                 entries={allEntries} 
                 onSelectDate={setSelectedDate} 
@@ -146,6 +193,12 @@ const App: React.FC = () => {
               </div>
             </div>
           )}
+          
+          <div className="mt-8 pt-4 border-t border-gray-100 dark:border-gray-800 text-center">
+             <button onClick={() => setIsCheatSheetOpen(true)} className="text-[10px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 uppercase tracking-widest font-bold">
+                Press ? for shortcuts
+             </button>
+          </div>
         </div>
       </aside>
 
@@ -156,12 +209,17 @@ const App: React.FC = () => {
                 <h2 className="text-2xl font-serif text-gray-900 dark:text-gray-100">
                     {selectedDate === todayISO ? "Today's Log" : `Log for ${selectedDate}`}
                 </h2>
-                <div className="text-xs text-gray-400 uppercase tracking-wider font-bold">
-                    {checkIfEditable(selectedDate) ? (
-                        <span className="text-green-600 dark:text-green-400 flex items-center gap-1">● Editable</span>
-                    ) : (
-                        <span className="text-gray-400 flex items-center gap-1">🔒 Read Only</span>
-                    )}
+                <div className="flex items-center gap-4">
+                    <button onClick={() => setIsZenMode(!isZenMode)} className="text-gray-400 hover:text-ink dark:hover:text-gray-200" title="Toggle Zen Mode (Ctrl+\)">
+                        {isZenMode ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                    </button>
+                    <div className="text-xs text-gray-400 uppercase tracking-wider font-bold">
+                        {checkIfEditable(selectedDate) ? (
+                            <span className="text-green-600 dark:text-green-400 flex items-center gap-1">● Editable</span>
+                        ) : (
+                            <span className="text-gray-400 flex items-center gap-1">🔒 Read Only</span>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -176,14 +234,23 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {/* --- RIGHT SIDEBAR --- */}
-      <aside className="w-full lg:w-80 bg-gray-50/50 dark:bg-gray-900/50 border-l border-gray-200 dark:border-gray-800 flex-shrink-0 h-auto lg:h-screen lg:sticky lg:top-0 overflow-y-auto p-6 hidden xl:block transition-colors duration-300">
-         <RightSidebar currentDate={selectedDate} allEntries={allEntries} />
+      {/* --- RIGHT SIDEBAR (Hidden in Zen Mode) --- */}
+      <aside className={`
+        w-full lg:w-80 bg-gray-50/50 dark:bg-gray-900/50 border-l border-gray-200 dark:border-gray-800 flex-shrink-0 
+        h-auto lg:h-screen lg:sticky lg:top-0 overflow-y-auto p-6 hidden xl:block transition-all duration-500 ease-in-out
+        ${isZenMode ? '-mr-80 opacity-0 lg:w-0 overflow-hidden' : 'opacity-100'}
+      `}>
+         <div className="min-w-[18rem]">
+            <RightSidebar currentDate={selectedDate} allEntries={allEntries} />
+         </div>
       </aside>
       
-      <div className="xl:hidden p-6 border-t border-gray-200 dark:border-gray-800 dark:bg-gray-900">
-         <RightSidebar currentDate={selectedDate} allEntries={allEntries} />
-      </div>
+      {/* Mobile Right Sidebar (Always shows at bottom unless zen mode) */}
+      {!isZenMode && (
+        <div className="xl:hidden p-6 border-t border-gray-200 dark:border-gray-800 dark:bg-gray-900">
+            <RightSidebar currentDate={selectedDate} allEntries={allEntries} />
+        </div>
+      )}
 
     </div>
   );
