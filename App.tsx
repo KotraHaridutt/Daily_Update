@@ -5,8 +5,9 @@ import { DailyEntryForm } from './components/DailyEntryForm';
 import { Calendar } from './components/Calendar';
 import { RightSidebar } from './components/RightSidebar';
 import { CommandPalette } from './components/CommandPalette';
-import { CheatSheet } from './components/CheatSheet'; // <--- NEW IMPORT
-import { Loader2, LayoutDashboard, Calendar as CalIcon, Moon, Sun, Search as SearchIcon, Maximize2, Minimize2 } from 'lucide-react';
+import { CheatSheet } from './components/CheatSheet'; 
+import { TechRadar } from './components/TechRadar'; // <--- NEW IMPORT
+import { Loader2, LayoutDashboard, Calendar as CalIcon, Moon, Sun, Search as SearchIcon, Maximize2, Minimize2, BarChart2 } from 'lucide-react';
 
 const App: React.FC = () => {
   const [stats, setStats] = useState<DailyStats | null>(null);
@@ -16,9 +17,10 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   
   // --- UI STATES ---
+  const [view, setView] = useState<'entry' | 'stats'>('entry'); // <--- NEW VIEW STATE
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isCheatSheetOpen, setIsCheatSheetOpen] = useState(false); // Cheat Sheet
-  const [isZenMode, setIsZenMode] = useState(false); // Zen Mode
+  const [isCheatSheetOpen, setIsCheatSheetOpen] = useState(false);
+  const [isZenMode, setIsZenMode] = useState(false);
   const [searchMatches, setSearchMatches] = useState<string[]>([]);
 
   // DARK MODE STATE
@@ -43,32 +45,31 @@ const App: React.FC = () => {
   // --- GLOBAL KEYBOARD SHORTCUTS ---
   useEffect(() => {
     const handleGlobalKeys = (e: KeyboardEvent) => {
-        // Ignore navigation keys if typing in an input/textarea
         const isTyping = (e.target as HTMLElement).tagName === 'TEXTAREA' || (e.target as HTMLElement).tagName === 'INPUT';
 
-        // Level 1: Time Travel (Arrow Keys)
         if (!isTyping) {
             if (e.key === 'ArrowLeft') {
                 const prev = new Date(selectedDate);
                 prev.setDate(prev.getDate() - 1);
                 setSelectedDate(prev.toISOString().split('T')[0]);
+                setView('entry'); // Switch back to entry if navigating
             }
             if (e.key === 'ArrowRight') {
                 const next = new Date(selectedDate);
                 next.setDate(next.getDate() + 1);
                 setSelectedDate(next.toISOString().split('T')[0]);
+                setView('entry');
             }
             if (e.key.toLowerCase() === 't') {
                 setSelectedDate(todayISO);
+                setView('entry');
             }
         }
 
-        // Level 4: Zen Mode (Ctrl + \)
         if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
             setIsZenMode(prev => !prev);
         }
 
-        // Cheat Sheet (?)
         if (e.key === '?' && e.shiftKey && !isTyping) {
             setIsCheatSheetOpen(true);
         }
@@ -121,12 +122,11 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-ink dark:text-gray-100 flex flex-col lg:flex-row font-sans selection:bg-green-200 dark:selection:bg-green-900 transition-colors duration-300">
       
-      {/* GLOBAL OVERLAYS */}
       <CommandPalette 
         isOpen={isSearchOpen} 
         setIsOpen={setIsSearchOpen}
         entries={allEntries}
-        onSelectDate={setSelectedDate}
+        onSelectDate={(date) => { setSelectedDate(date); setView('entry'); }}
         onSearchChange={setSearchMatches}
       />
       <CheatSheet 
@@ -134,13 +134,13 @@ const App: React.FC = () => {
         onClose={() => setIsCheatSheetOpen(false)}
       />
 
-      {/* --- LEFT SIDEBAR (Hidden in Zen Mode) --- */}
+      {/* --- LEFT SIDEBAR --- */}
       <aside className={`
         w-full lg:w-72 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex-shrink-0 
         h-auto lg:h-screen sticky top-0 overflow-y-auto transition-all duration-500 ease-in-out
         ${isZenMode ? '-ml-72 opacity-0 lg:w-0 overflow-hidden' : 'opacity-100'}
       `}>
-        <div className="p-6 min-w-[18rem]"> {/* min-w prevents layout squishing during transition */}
+        <div className="p-6 min-w-[18rem]">
           <header className="mb-8 flex justify-between items-start">
              <div>
                 <div className="flex items-center gap-2 mb-1 text-gray-400">
@@ -173,9 +173,25 @@ const App: React.FC = () => {
             </h2>
             <Calendar 
                 entries={allEntries} 
-                onSelectDate={setSelectedDate} 
+                onSelectDate={(date) => { setSelectedDate(date); setView('entry'); }}
                 highlightedDates={isSearchOpen && searchMatches.length > 0 ? searchMatches : undefined}
             />
+          </div>
+          
+          {/* STATS TOGGLE BUTTON */}
+          <div className="mb-8">
+            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Analytics</h2>
+            <button 
+                onClick={() => setView('stats')}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold transition-colors ${
+                    view === 'stats' 
+                    ? 'bg-ink text-white dark:bg-white dark:text-gray-900 shadow-md' 
+                    : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+            >
+                <BarChart2 className="w-4 h-4" />
+                View Tech Radar
+            </button>
           </div>
 
           {stats && (
@@ -205,36 +221,44 @@ const App: React.FC = () => {
       {/* --- CENTER STAGE --- */}
       <main className="flex-grow p-4 md:p-8 lg:p-12 overflow-y-auto bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
         <div className="max-w-2xl mx-auto">
-            <div className="mb-8 flex items-baseline justify-between">
-                <h2 className="text-2xl font-serif text-gray-900 dark:text-gray-100">
-                    {selectedDate === todayISO ? "Today's Log" : `Log for ${selectedDate}`}
-                </h2>
-                <div className="flex items-center gap-4">
-                    <button onClick={() => setIsZenMode(!isZenMode)} className="text-gray-400 hover:text-ink dark:hover:text-gray-200" title="Toggle Zen Mode (Ctrl+\)">
-                        {isZenMode ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-                    </button>
-                    <div className="text-xs text-gray-400 uppercase tracking-wider font-bold">
-                        {checkIfEditable(selectedDate) ? (
-                            <span className="text-green-600 dark:text-green-400 flex items-center gap-1">● Editable</span>
-                        ) : (
-                            <span className="text-gray-400 flex items-center gap-1">🔒 Read Only</span>
-                        )}
+            {view === 'stats' ? (
+                // --- VIEW 1: TECH RADAR ---
+                <TechRadar entries={allEntries} onClose={() => setView('entry')} />
+            ) : (
+                // --- VIEW 2: DAILY ENTRY ---
+                <>
+                    <div className="mb-8 flex items-baseline justify-between">
+                        <h2 className="text-2xl font-serif text-gray-900 dark:text-gray-100">
+                            {selectedDate === todayISO ? "Today's Log" : `Log for ${selectedDate}`}
+                        </h2>
+                        <div className="flex items-center gap-4">
+                            <button onClick={() => setIsZenMode(!isZenMode)} className="text-gray-400 hover:text-ink dark:hover:text-gray-200" title="Toggle Zen Mode (Ctrl+\)">
+                                {isZenMode ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                            </button>
+                            <div className="text-xs text-gray-400 uppercase tracking-wider font-bold">
+                                {checkIfEditable(selectedDate) ? (
+                                    <span className="text-green-600 dark:text-green-400 flex items-center gap-1">● Editable</span>
+                                ) : (
+                                    <span className="text-gray-400 flex items-center gap-1">🔒 Read Only</span>
+                                )}
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
 
-            <DailyEntryForm 
-                key={selectedDate} 
-                targetDate={selectedDate}
-                initialData={currentEntry}
-                onSaved={handleSave}
-                readOnlyMode={!checkIfEditable(selectedDate) && !!currentEntry} 
-                allowEdit={checkIfEditable(selectedDate)}
-            />
+                    <DailyEntryForm 
+                        key={selectedDate} 
+                        targetDate={selectedDate}
+                        initialData={currentEntry}
+                        onSaved={handleSave}
+                        readOnlyMode={!checkIfEditable(selectedDate) && !!currentEntry} 
+                        allowEdit={checkIfEditable(selectedDate)}
+                    />
+                </>
+            )}
         </div>
       </main>
 
-      {/* --- RIGHT SIDEBAR (Hidden in Zen Mode) --- */}
+      {/* --- RIGHT SIDEBAR --- */}
       <aside className={`
         w-full lg:w-80 bg-gray-50/50 dark:bg-gray-900/50 border-l border-gray-200 dark:border-gray-800 flex-shrink-0 
         h-auto lg:h-screen lg:sticky lg:top-0 overflow-y-auto p-6 hidden xl:block transition-all duration-500 ease-in-out
@@ -245,7 +269,6 @@ const App: React.FC = () => {
          </div>
       </aside>
       
-      {/* Mobile Right Sidebar (Always shows at bottom unless zen mode) */}
       {!isZenMode && (
         <div className="xl:hidden p-6 border-t border-gray-200 dark:border-gray-800 dark:bg-gray-900">
             <RightSidebar currentDate={selectedDate} allEntries={allEntries} />
