@@ -4,7 +4,8 @@ import { LedgerService, getTodayISO } from './services/ledgerService';
 import { DailyEntryForm } from './components/DailyEntryForm';
 import { Calendar } from './components/Calendar';
 import { RightSidebar } from './components/RightSidebar';
-import { Loader2, LayoutDashboard, Calendar as CalIcon, Moon, Sun } from 'lucide-react';
+import { CommandPalette } from './components/CommandPalette'; // <--- NEW IMPORT
+import { Loader2, LayoutDashboard, Calendar as CalIcon, Moon, Sun, Search as SearchIcon } from 'lucide-react';
 
 const App: React.FC = () => {
   const [stats, setStats] = useState<DailyStats | null>(null);
@@ -13,6 +14,10 @@ const App: React.FC = () => {
   const [allEntries, setAllEntries] = useState<LedgerEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
+  // --- SEARCH STATE ---
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchMatches, setSearchMatches] = useState<string[]>([]); // Dates that match search
+
   // DARK MODE STATE
   const [isDark, setIsDark] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -22,7 +27,6 @@ const App: React.FC = () => {
     return false;
   });
 
-  // Apply Dark Mode Class
   useEffect(() => {
     if (isDark) {
       document.documentElement.classList.add('dark');
@@ -76,6 +80,15 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-ink dark:text-gray-100 flex flex-col lg:flex-row font-sans selection:bg-green-200 dark:selection:bg-green-900 transition-colors duration-300">
       
+      {/* --- COMMAND PALETTE (Global) --- */}
+      <CommandPalette 
+        isOpen={isSearchOpen} 
+        setIsOpen={setIsSearchOpen}
+        entries={allEntries}
+        onSelectDate={setSelectedDate}
+        onSearchChange={setSearchMatches}
+      />
+
       {/* --- LEFT SIDEBAR --- */}
       <aside className="w-full lg:w-72 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex-shrink-0 h-auto lg:h-screen sticky top-0 overflow-y-auto transition-colors duration-300">
         <div className="p-6">
@@ -86,23 +99,36 @@ const App: React.FC = () => {
                     <span className="text-[10px] font-bold uppercase tracking-widest">Dashboard</span>
                 </div>
                 <h1 className="text-lg font-bold tracking-tight text-gray-900 dark:text-white">My Daily Updates</h1>
-                <p className="text-xs text-gray-500 mt-2 font-serif italic">"Consistency is quiet."</p>
              </div>
-             {/* THEME TOGGLE BUTTON */}
-             <button 
-                onClick={() => setIsDark(!isDark)}
-                className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500 transition-colors"
-                title="Toggle Dark Mode"
-             >
-                {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-             </button>
+             <div className="flex gap-2">
+                {/* Search Trigger Button */}
+                <button 
+                    onClick={() => setIsSearchOpen(true)}
+                    className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500 transition-colors"
+                    title="Search (Ctrl+K)"
+                >
+                    <SearchIcon className="w-4 h-4" />
+                </button>
+                <button 
+                    onClick={() => setIsDark(!isDark)}
+                    className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500 transition-colors"
+                    title="Toggle Dark Mode"
+                >
+                    {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                </button>
+             </div>
           </header>
 
           <div className="mb-8">
             <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
                 <CalIcon className="w-3 h-3" /> Navigation
             </h2>
-            <Calendar entries={allEntries} onSelectDate={setSelectedDate} />
+            {/* Pass search matches to Calendar */}
+            <Calendar 
+                entries={allEntries} 
+                onSelectDate={setSelectedDate} 
+                highlightedDates={isSearchOpen && searchMatches.length > 0 ? searchMatches : undefined}
+            />
           </div>
 
           {stats && (
@@ -116,10 +142,6 @@ const App: React.FC = () => {
                  <div className="flex justify-between items-center text-sm">
                     <span className="text-gray-600 dark:text-gray-400">Completion</span>
                     <span className="font-bold font-mono text-gray-900 dark:text-gray-200">{stats.completionRate}%</span>
-                 </div>
-                 <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600 dark:text-gray-400">Total</span>
-                    <span className="font-bold font-mono text-gray-900 dark:text-gray-200">{stats.totalEntries}</span>
                  </div>
               </div>
             </div>
@@ -159,7 +181,6 @@ const App: React.FC = () => {
          <RightSidebar currentDate={selectedDate} allEntries={allEntries} />
       </aside>
       
-      {/* Mobile Right Sidebar */}
       <div className="xl:hidden p-6 border-t border-gray-200 dark:border-gray-800 dark:bg-gray-900">
          <RightSidebar currentDate={selectedDate} allEntries={allEntries} />
       </div>
