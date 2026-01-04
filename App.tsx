@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-
 import { LedgerEntry, DailyStats } from './types';
 import { LedgerService, getTodayISO } from './services/ledgerService';
 import { DailyEntryForm } from './components/DailyEntryForm';
@@ -23,7 +22,7 @@ const App: React.FC = () => {
     return false;
   });
 
-  // Apply Dark Mode Class to HTML tag
+  // Apply Dark Mode Class
   useEffect(() => {
     if (isDark) {
       document.documentElement.classList.add('dark');
@@ -77,7 +76,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-ink dark:text-gray-100 flex flex-col lg:flex-row font-sans selection:bg-green-200 dark:selection:bg-green-900 transition-colors duration-300">
       
-      {/* --- COLUMN 1: LEFT SIDEBAR --- */}
+      {/* --- LEFT SIDEBAR --- */}
       <aside className="w-full lg:w-72 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex-shrink-0 h-auto lg:h-screen sticky top-0 overflow-y-auto transition-colors duration-300">
         <div className="p-6">
           <header className="mb-8 flex justify-between items-start">
@@ -89,7 +88,7 @@ const App: React.FC = () => {
                 <h1 className="text-lg font-bold tracking-tight text-gray-900 dark:text-white">My Daily Updates</h1>
                 <p className="text-xs text-gray-500 mt-2 font-serif italic">"Consistency is quiet."</p>
              </div>
-             {/* THEME TOGGLE */}
+             {/* THEME TOGGLE BUTTON */}
              <button 
                 onClick={() => setIsDark(!isDark)}
                 className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500 transition-colors"
@@ -128,7 +127,7 @@ const App: React.FC = () => {
         </div>
       </aside>
 
-      {/* --- COLUMN 2: CENTER STAGE --- */}
+      {/* --- CENTER STAGE --- */}
       <main className="flex-grow p-4 md:p-8 lg:p-12 overflow-y-auto bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
         <div className="max-w-2xl mx-auto">
             <div className="mb-8 flex items-baseline justify-between">
@@ -155,11 +154,12 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {/* --- COLUMN 3: RIGHT SIDEBAR --- */}
+      {/* --- RIGHT SIDEBAR --- */}
       <aside className="w-full lg:w-80 bg-gray-50/50 dark:bg-gray-900/50 border-l border-gray-200 dark:border-gray-800 flex-shrink-0 h-auto lg:h-screen lg:sticky lg:top-0 overflow-y-auto p-6 hidden xl:block transition-colors duration-300">
          <RightSidebar currentDate={selectedDate} allEntries={allEntries} />
       </aside>
       
+      {/* Mobile Right Sidebar */}
       <div className="xl:hidden p-6 border-t border-gray-200 dark:border-gray-800 dark:bg-gray-900">
          <RightSidebar currentDate={selectedDate} allEntries={allEntries} />
       </div>

@@ -1,6 +1,5 @@
 import React from 'react';
 
-// --- 1. THE NEW GRADIENT SLIDER (Dark Mode Compatible) ---
 interface EffortSliderProps {
   value: number;
   onChange: (value: number) => void;
@@ -30,7 +29,6 @@ export const EffortSlider: React.FC<EffortSliderProps> = ({ value, onChange }) =
         {levels.map((level) => {
           const isActive = value >= level.val;
           const isExact = value === level.val;
-          
           return (
             <button
               key={level.val}
@@ -42,23 +40,15 @@ export const EffortSlider: React.FC<EffortSliderProps> = ({ value, onChange }) =
                 ${isExact ? `shadow-[0_0_15px_-3px] ${level.glow} z-10 scale-[1.02]` : ''}
               `}
             >
-              {isActive && (
-                <div className="absolute inset-0 bg-white/20 group-hover:bg-white/30 transition-colors" />
-              )}
+              {isActive && <div className="absolute inset-0 bg-white/20 group-hover:bg-white/30 transition-colors" />}
             </button>
           );
         })}
-      </div>
-      
-      <div className="flex justify-between mt-2 text-[10px] text-gray-300 dark:text-gray-600 font-sans font-bold uppercase tracking-widest">
-        <span>Low</span>
-        <span>High Burn</span>
       </div>
     </div>
   );
 };
 
-// --- 2. TEXT AREA (Dark Mode Compatible) ---
 interface TextAreaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
   warning?: boolean;
@@ -80,25 +70,15 @@ export const TextArea: React.FC<TextAreaProps> = ({ label, warning, className = 
             border-b-2 transition-all duration-300 outline-none resize-none py-2
             placeholder:text-gray-200 dark:placeholder:text-gray-700 placeholder:italic
             
-            /* Light Mode Colors */
             bg-white text-ink border-gray-100 focus:border-ink
-            
-            /* Dark Mode Colors */
             dark:bg-gray-900 dark:text-gray-100 dark:border-gray-800 dark:focus:border-gray-400
             
-            ${warning 
-              ? 'border-red-300 focus:border-red-500 bg-red-50/10 dark:bg-red-900/10' 
-              : ''
-            }
+            ${warning ? 'border-red-300 focus:border-red-500 bg-red-50/10 dark:bg-red-900/10' : ''}
             ${className}
           `}
         />
-        {/* Character Count */}
         {props.maxLength && (
-          <div className={`
-            absolute bottom-2 right-2 text-[10px] font-mono transition-colors
-            ${(props.value as string)?.length > (props.maxLength * 0.9) ? 'text-orange-500 font-bold' : 'text-gray-200 dark:text-gray-700'}
-          `}>
+          <div className={`absolute bottom-2 right-2 text-[10px] font-mono transition-colors ${(props.value as string)?.length > (props.maxLength * 0.9) ? 'text-orange-500 font-bold' : 'text-gray-200 dark:text-gray-700'}`}>
             {(props.value as string)?.length || 0} / {props.maxLength}
           </div>
         )}
@@ -107,9 +87,7 @@ export const TextArea: React.FC<TextAreaProps> = ({ label, warning, className = 
   );
 };
 
-// --- 3. ACTION BUTTON (Dark Mode Compatible) ---
 interface ActionButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {}
-
 export const ActionButton: React.FC<ActionButtonProps> = ({ children, className = '', disabled, ...props }) => {
   return (
     <button
@@ -118,10 +96,7 @@ export const ActionButton: React.FC<ActionButtonProps> = ({ children, className 
         px-8 py-4 text-xs font-bold uppercase tracking-[0.2em] rounded-sm
         transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5
         disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none
-        
-        bg-ink text-white 
-        dark:bg-gray-100 dark:text-gray-900 dark:hover:shadow-white/10
-        
+        bg-ink text-white dark:bg-gray-100 dark:text-gray-900 dark:hover:shadow-white/10
         ${className}
       `}
       {...props}
