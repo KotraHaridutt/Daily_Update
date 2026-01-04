@@ -16,18 +16,16 @@ interface Props {
 const QUICK_TAGS = ['#Coding', '#BugFix', '#Meeting', '#Learning', '#Planning', '#Review'];
 const TIME_LEAKS = ['📱 Social Media', '🎮 Games', '🛌 Napping', '💭 Overthinking', '🔁 Context Switch', '🐌 Procrastination'];
 
-// --- MARKDOWN STYLING CONFIG (Dark Mode Compatible) ---
+// --- MARKDOWN CONFIG ---
 const markdownComponents = {
     p: ({node, ...props}: any) => <p className="mb-2 leading-relaxed text-ink dark:text-gray-200" {...props} />,
     strong: ({node, ...props}: any) => <strong className="font-bold text-gray-900 dark:text-white" {...props} />,
     ul: ({node, ...props}: any) => <ul className="list-disc list-inside my-2 pl-2 space-y-1 dark:text-gray-300" {...props} />,
     ol: ({node, ...props}: any) => <ol className="list-decimal list-inside my-2 pl-2 space-y-1 dark:text-gray-300" {...props} />,
     blockquote: ({node, ...props}: any) => <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic text-gray-500 dark:text-gray-400 my-4" {...props} />,
-    
     code: ({node, className, children, ...props}: any) => {
         const content = String(children);
         const isBlock = content.includes('\n'); 
-
         if (isBlock) {
              return (
                 <div className="bg-gray-800 dark:bg-gray-950 text-gray-100 rounded-md p-3 my-3 overflow-x-auto font-mono text-xs border border-gray-700 shadow-sm">
@@ -64,6 +62,7 @@ export const DailyEntryForm: React.FC<Props> = ({
   const [showFreeThought, setShowFreeThought] = useState(false);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
+  // --- EFFECT 1: Handle Data Updates (Populate Form) ---
   useEffect(() => {
     if (initialData) {
       setFormData({
@@ -75,13 +74,20 @@ export const DailyEntryForm: React.FC<Props> = ({
       });
       if (initialData.freeThought) setShowFreeThought(true);
     } else {
+      // Reset if no data for this day
       setFormData({ workLog: '', learningLog: '', timeLeakLog: '', effortRating: 0, freeThought: '' });
       setShowFreeThought(false);
     }
+  }, [initialData]); // Removed targetDate from here to prevent loops
 
+  // --- EFFECT 2: Handle Date Selection (Switch Mode) ---
+  useEffect(() => {
     const isToday = targetDate === getTodayISO();
+    // Only auto-open edit mode if it's today AND we don't have data yet?
+    // For now, we simply default to Edit mode when you CLICK a date that is Today.
+    // But importantly, this won't run again when you click "Save".
     setIsEditing(isToday);
-  }, [initialData, targetDate]);
+  }, [targetDate]);
 
   const validation = useMemo(() => {
     const workLen = formData.workLog.length;
@@ -90,13 +96,9 @@ export const DailyEntryForm: React.FC<Props> = ({
     const learnEmpty = !formData.learningLog.trim();
     const leakEmpty = !formData.timeLeakLog.trim();
     const effortZero = formData.effortRating === 0;
-
-    const allText = `${formData.workLog} ${formData.learningLog} ${formData.timeLeakLog}`.toLowerCase();
-    const words = allText.split(/[\s,.!?]+/);
-    const vagueWord = words.find(w => VAGUE_WORDS.includes(w));
     
     const isValid = !workShort && !learnEmpty && !leakEmpty && !effortZero; 
-    return { workShort, workRemaining, learnEmpty, leakEmpty, effortZero, vagueWord, isValid };
+    return { workShort, workRemaining, learnEmpty, leakEmpty, effortZero, isValid };
   }, [formData]);
 
   const appendText = (field: keyof typeof formData, text: string) => {
@@ -118,6 +120,9 @@ export const DailyEntryForm: React.FC<Props> = ({
         date: targetDate,
         ...formData
       });
+      // 1. Close Edit Mode IMMEDIATELY
+      setIsEditing(false);
+      // 2. Notify Parent to reload data
       onSaved();
     } catch (error) {
       alert("Failed to save to cloud. Check console.");
@@ -138,7 +143,7 @@ export const DailyEntryForm: React.FC<Props> = ({
            <div className="flex items-center gap-2 text-subtle dark:text-gray-500">
              <Lock className="w-4 h-4" />
              <span className="text-xs font-sans uppercase tracking-widest">
-                {allowEdit ? "Locked Entry" : "Entry Locked"}
+                {allowEdit ? "Entry Saved" : "Locked"}
              </span>
            </div>
            
@@ -203,7 +208,10 @@ export const DailyEntryForm: React.FC<Props> = ({
     <div className="animate-fade-in bg-white dark:bg-gray-900 p-8 rounded-xl border border-border dark:border-gray-800 shadow-sm transition-colors duration-300">
       <div className="mb-8 flex justify-between items-center border-b border-gray-100 dark:border-gray-800 pb-4">
         <span className="text-sm font-mono text-gray-500 bg-gray-50 dark:bg-gray-800 px-3 py-1 rounded-md">{targetDate}</span>
-        <button onClick={() => setIsEditing(false)} className="text-xs font-bold text-gray-400 hover:text-ink dark:hover:text-gray-200 uppercase tracking-wider">Cancel Edit</button>
+        {/* If we already have data, we can Cancel Edit. If it's a new entry, we probably can't cancel to anything. */}
+        {initialData && (
+             <button onClick={() => setIsEditing(false)} className="text-xs font-bold text-gray-400 hover:text-ink dark:hover:text-gray-200 uppercase tracking-wider">Cancel Edit</button>
+        )}
       </div>
 
       <div className="mb-2">
