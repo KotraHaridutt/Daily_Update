@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { LedgerEntry } from '../types';
-import { Trophy, AlertTriangle, Zap, Star } from 'lucide-react';
+import { Trophy, AlertTriangle, Zap, Star, Info, X, Sword, Scroll } from 'lucide-react';
 
 interface Props {
   entries: LedgerEntry[];
@@ -23,6 +23,7 @@ interface SkillStat {
 }
 
 export const TechRadar: React.FC<Props> = ({ entries, onClose }) => {
+  const [showManual, setShowManual] = useState(false); // <--- NEW STATE
   const today = new Date();
 
   // --- 1. THE XP ENGINE ---
@@ -30,33 +31,25 @@ export const TechRadar: React.FC<Props> = ({ entries, onClose }) => {
     const stats: Record<string, { xp: number; lastUsed: string }> = {};
 
     entries.forEach(entry => {
-      // Regex allows hyphens/underscores
       const text = `${entry.workLog} ${entry.learningLog} ${entry.workLog}`.toLowerCase();
       const tags = text.match(/#[a-z0-9_\-]+/g); 
 
       if (tags) {
         const uniqueTags = [...new Set(tags)];
-        
         uniqueTags.forEach(t => {
           const tag = t.replace('#', '').toUpperCase(); 
           
-          // --- ⚔️ BOSS FIGHT XP FIX ⚔️ ---
           let xpGain = 0;
-
           if (tag === 'PROJECT_LAUNCH' || tag === 'PROJECT-LAUNCH') {
-             // Legendary Tag: Worth 5000 XP immediately
              xpGain = 5000;
           } else {
-             // Standard Tag: Base + Effort Bonus
              const effortBonus = (entry.effortRating || 1) * 5; 
              xpGain = XP_PER_TAG + effortBonus;
           }
-          // -------------------------------
 
           if (!stats[tag]) {
             stats[tag] = { xp: 0, lastUsed: entry.date };
           }
-          
           stats[tag].xp += xpGain;
           
           if (entry.date > stats[tag].lastUsed) {
@@ -72,7 +65,6 @@ export const TechRadar: React.FC<Props> = ({ entries, onClose }) => {
         const diffTime = Math.abs(today.getTime() - lastDate.getTime());
         const daysSince = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         
-        // Linear Leveling: 0-99 = Lvl 1
         const level = Math.floor(data.xp / LEVEL_CONSTANT) + 1;
         const nextLevelProgress = data.xp % LEVEL_CONSTANT; 
 
@@ -90,17 +82,15 @@ export const TechRadar: React.FC<Props> = ({ entries, onClose }) => {
       .slice(0, 6); 
   }, [entries]);
 
-  // --- 2. BADGE CALCULATOR (Advanced Stack Combos) ---
+  // --- 2. BADGE CALCULATOR ---
   const badges = useMemo(() => {
     const list = [];
     const totalEntries = entries.length;
-    const allTags = new Set(skills.map(s => s.name)); // Get normalized tag names
+    const allTags = new Set(skills.map(s => s.name)); 
 
-    // -- MILESTONES --
     if (totalEntries >= 1) list.push({ name: "Hello World", icon: "🌱", color: "text-green-500", desc: "First Entry" });
     if (totalEntries >= 7) list.push({ name: "Week Warrior", icon: "🔥", color: "text-orange-500", desc: "7 Entries" });
     
-    // -- STACK COMBOS --
     // MERN Stack
     if ((allTags.has('REACT') || allTags.has('NEXTJS')) && allTags.has('NODE') && (allTags.has('MONGO') || allTags.has('SQL'))) {
         list.push({ name: "Full Stack", icon: "🏗️", color: "text-indigo-500", desc: "React + Node + DB" });
@@ -116,13 +106,18 @@ export const TechRadar: React.FC<Props> = ({ entries, onClose }) => {
          list.push({ name: "Sys Admin", icon: "💻", color: "text-blue-500", desc: "OS Mastery" });
     }
 
-    // Firefighter (High Effort Bug Fixes)
+    // Firefighter
     const hasFirefighter = entries.some(e => e.workLog.toLowerCase().includes('#bugfix') && e.effortRating === 5);
     if (hasFirefighter) list.push({ name: "Firefighter", icon: "🧯", color: "text-red-500", desc: "Max Effort Bug Fix" });
 
-    // Polyglot (3+ Strong Skills)
+    // Polyglot
     const strongSkills = skills.filter(s => s.level >= 3).length;
     if (strongSkills >= 3) list.push({ name: "Polyglot", icon: "🧠", color: "text-purple-500", desc: "3+ Skills > Lvl 3" });
+    
+    // Boss Slayer
+    if (allTags.has('PROJECT_LAUNCH') || allTags.has('PROJECT-LAUNCH')) {
+        list.push({ name: "Boss Slayer", icon: "⚔️", color: "text-yellow-600", desc: "Deployed a Project" });
+    }
 
     return list;
   }, [entries, skills]);
@@ -157,19 +152,86 @@ export const TechRadar: React.FC<Props> = ({ entries, onClose }) => {
   }
 
   return (
-    <div className="animate-fade-in bg-white dark:bg-gray-900 p-8 rounded-xl border border-border dark:border-gray-800 shadow-sm h-full overflow-y-auto">
+    <div className="animate-fade-in bg-white dark:bg-gray-900 p-8 rounded-xl border border-border dark:border-gray-800 shadow-sm h-full overflow-y-auto relative">
+      
+      {/* HEADER */}
       <div className="flex justify-between items-center mb-8">
         <div>
             <h2 className="text-2xl font-serif text-gray-900 dark:text-gray-100 flex items-center gap-2">
                 <Trophy className="w-6 h-6 text-yellow-500" /> 
                 Developer Stats
             </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Based on effort-weighted analysis of your tags.</p>
+            <div className="flex items-center gap-2 mt-1">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Based on effort-weighted analysis.</p>
+                <button onClick={() => setShowManual(true)} className="text-xs flex items-center gap-1 text-blue-500 hover:text-blue-600 font-bold bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-full transition-colors">
+                    <Info className="w-3 h-3" /> Manual
+                </button>
+            </div>
         </div>
         <button onClick={onClose} className="text-xs font-bold text-gray-400 hover:text-ink uppercase tracking-wider">
             Back to Log
         </button>
       </div>
+
+      {/* MANUAL MODAL */}
+      {showManual && (
+        <div className="absolute inset-0 z-50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm p-8 overflow-y-auto animate-fade-in">
+             <div className="max-w-2xl mx-auto">
+                <div className="flex justify-between items-start mb-6">
+                    <h3 className="text-xl font-bold flex items-center gap-2 text-gray-900 dark:text-white">
+                        <Scroll className="w-5 h-5" /> The Player's Manual
+                    </h3>
+                    <button onClick={() => setShowManual(false)} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full">
+                        <X className="w-5 h-5 text-gray-500" />
+                    </button>
+                </div>
+
+                <div className="space-y-8">
+                    <section>
+                        <h4 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">1. How to Gain XP</h4>
+                        <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                            <p><strong>🏷️ Hashtags:</strong> Use tags in your logs like <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">#React</code>. Do not use spaces! Use hyphens for multi-words: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">#Operating-Systems</code>.</p>
+                            <p><strong>💪 Effort Multiplier:</strong> XP is calculated as <code className="font-mono text-xs">Base XP + (Effort Level × 5)</code>. A Level 5 day grants 5x more XP than a Level 1 day.</p>
+                        </div>
+                    </section>
+
+                    <section>
+                        <h4 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">2. Mechanics</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-red-50 dark:bg-red-900/10 p-4 rounded-lg border border-red-100 dark:border-red-900/30">
+                                <strong className="text-red-600 block mb-1 flex items-center gap-2"><AlertTriangle className="w-3 h-3"/> Skill Decay</strong>
+                                <p className="text-xs text-gray-600 dark:text-gray-400">If you don't use a tag for <strong>14 days</strong>, the skill will begin to rust. Log an entry to repair it.</p>
+                            </div>
+                            <div className="bg-yellow-50 dark:bg-yellow-900/10 p-4 rounded-lg border border-yellow-100 dark:border-yellow-900/30">
+                                <strong className="text-yellow-600 block mb-1 flex items-center gap-2"><Sword className="w-3 h-3"/> Boss Fight</strong>
+                                <p className="text-xs text-gray-600 dark:text-gray-400">When finishing a major project, use tag <code className="bg-white dark:bg-gray-800 px-1 rounded">#PROJECT_LAUNCH</code> for a massive XP drop.</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section>
+                        <h4 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">3. Badge Recipes (Spoilers)</h4>
+                        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg overflow-hidden border border-gray-100 dark:border-gray-700">
+                            <table className="w-full text-sm text-left">
+                                <thead className="bg-gray-100 dark:bg-gray-700 text-xs uppercase text-gray-500">
+                                    <tr>
+                                        <th className="p-3">Badge</th>
+                                        <th className="p-3">Recipe</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100 dark:divide-gray-700 text-gray-700 dark:text-gray-300">
+                                    <tr><td className="p-3 font-bold text-indigo-500">Full Stack</td><td className="p-3 font-mono text-xs">#React + #Node + #SQL</td></tr>
+                                    <tr><td className="p-3 font-bold text-teal-500">Data Alchemist</td><td className="p-3 font-mono text-xs">#Python + #Pandas</td></tr>
+                                    <tr><td className="p-3 font-bold text-blue-500">Sys Admin</td><td className="p-3 font-mono text-xs">#Linux OR #Operating-Systems</td></tr>
+                                    <tr><td className="p-3 font-bold text-red-500">Firefighter</td><td className="p-3 font-mono text-xs">#BugFix + Effort Level 5</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                </div>
+             </div>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-2 gap-12">
         {/* LEFT: RADAR CHART */}
