@@ -188,10 +188,29 @@ export const DailyEntryForm: React.FC<Props> = ({
 
   const handleSubmit = async () => {
     setHasAttemptedSubmit(true);
-    // Note: We need to check validity here based on current state, using Ref or State
-    // Since we are inside the closure, verify logic carefully. 
-    // Just blindly saving for now, assuming user knows validation via UI.
     
+    // 1. Check if form is valid
+    if (!validation.isValid) return;
+    
+    // --- ⚔️ NEW: BOSS FIGHT LOGIC ⚔️ ---
+    // This checks if you used the special tag before saving
+    if (formData.workLog.toUpperCase().includes('#PROJECT_LAUNCH')) {
+        // Calculate the "Fake" Loot Drop
+        const lootXP = 5000 + (formData.workLog.length * 2);
+        
+        // Trigger the Confirmation
+        const confirmLaunch = window.confirm(
+            `⚔️ BOSS FIGHT DETECTED: #PROJECT_LAUNCH ⚔️\n\n` +
+            `You are about to deploy a major milestone.\n` +
+            `Estimated Loot Drop: +${lootXP} XP\n\n` +
+            `Are you ready to commit?`
+        );
+        
+        // If user clicks "Cancel", stop the save
+        if (!confirmLaunch) return;
+    }
+    // -------------------------------------
+
     setIsSaving(true);
     try {
       await LedgerService.saveEntry({

@@ -8,15 +8,15 @@ interface Props {
 }
 
 // --- RPG CONSTANTS ---
-const XP_PER_TAG = 10; // 10 XP per tag
-const LEVEL_CONSTANT = 100; // Every 100 XP is a level
+const XP_PER_TAG = 10; 
+const LEVEL_CONSTANT = 100; 
 const DECAY_DAYS = 14; 
 
 interface SkillStat {
   name: string;
   xp: number;
   level: number;
-  nextLevelProgress: number; // How much XP into the current level
+  nextLevelProgress: number; 
   lastUsed: string; 
   daysSince: number;
   status: 'active' | 'decaying' | 'master';
@@ -30,8 +30,7 @@ export const TechRadar: React.FC<Props> = ({ entries, onClose }) => {
     const stats: Record<string, { xp: number; lastUsed: string }> = {};
 
     entries.forEach(entry => {
-      // FIX 1: UPDATED REGEX to allow hyphens (-) and underscores (_)
-      // Matches: #react, #operating-systems, #c_plus_plus
+      // Regex allows hyphens/underscores
       const text = `${entry.workLog} ${entry.learningLog} ${entry.workLog}`.toLowerCase();
       const tags = text.match(/#[a-z0-9_\-]+/g); 
 
@@ -41,9 +40,18 @@ export const TechRadar: React.FC<Props> = ({ entries, onClose }) => {
         uniqueTags.forEach(t => {
           const tag = t.replace('#', '').toUpperCase(); 
           
-          // XP Math
-          const effortBonus = (entry.effortRating || 1) * 5; 
-          const xpGain = XP_PER_TAG + effortBonus;
+          // --- ⚔️ BOSS FIGHT XP FIX ⚔️ ---
+          let xpGain = 0;
+
+          if (tag === 'PROJECT_LAUNCH' || tag === 'PROJECT-LAUNCH') {
+             // Legendary Tag: Worth 5000 XP immediately
+             xpGain = 5000;
+          } else {
+             // Standard Tag: Base + Effort Bonus
+             const effortBonus = (entry.effortRating || 1) * 5; 
+             xpGain = XP_PER_TAG + effortBonus;
+          }
+          // -------------------------------
 
           if (!stats[tag]) {
             stats[tag] = { xp: 0, lastUsed: entry.date };
@@ -64,11 +72,9 @@ export const TechRadar: React.FC<Props> = ({ entries, onClose }) => {
         const diffTime = Math.abs(today.getTime() - lastDate.getTime());
         const daysSince = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         
-        // FIX 2: LINEAR LEVELING (Easier to understand)
-        // 0-99 XP = Lvl 1
-        // 100-199 XP = Lvl 2
+        // Linear Leveling: 0-99 = Lvl 1
         const level = Math.floor(data.xp / LEVEL_CONSTANT) + 1;
-        const nextLevelProgress = data.xp % LEVEL_CONSTANT; // The remainder
+        const nextLevelProgress = data.xp % LEVEL_CONSTANT; 
 
         return {
           name,
@@ -84,35 +90,47 @@ export const TechRadar: React.FC<Props> = ({ entries, onClose }) => {
       .slice(0, 6); 
   }, [entries]);
 
-  // --- 2. BADGE CALCULATOR ---
+  // --- 2. BADGE CALCULATOR (Advanced Stack Combos) ---
   const badges = useMemo(() => {
     const list = [];
     const totalEntries = entries.length;
-    
-    // Get all unique normalized tags
-    const allTags = new Set(skills.map(s => s.name));
+    const allTags = new Set(skills.map(s => s.name)); // Get normalized tag names
 
-    // Simple Milestones
+    // -- MILESTONES --
     if (totalEntries >= 1) list.push({ name: "Hello World", icon: "🌱", color: "text-green-500", desc: "First Entry" });
     if (totalEntries >= 7) list.push({ name: "Week Warrior", icon: "🔥", color: "text-orange-500", desc: "7 Entries" });
     
-    // Polyglot: 3 Skills >= Level 3
+    // -- STACK COMBOS --
+    // MERN Stack
+    if ((allTags.has('REACT') || allTags.has('NEXTJS')) && allTags.has('NODE') && (allTags.has('MONGO') || allTags.has('SQL'))) {
+        list.push({ name: "Full Stack", icon: "🏗️", color: "text-indigo-500", desc: "React + Node + DB" });
+    }
+    
+    // Data Science
+    if (allTags.has('PYTHON') && (allTags.has('PANDAS') || allTags.has('NUMPY') || allTags.has('AI'))) {
+        list.push({ name: "Data Alchemist", icon: "🧪", color: "text-teal-500", desc: "Python + Data Libs" });
+    }
+
+    // Sys Admin (OS)
+    if (allTags.has('OPERATING-SYSTEMS') || allTags.has('OPERATING') || allTags.has('LINUX')) {
+         list.push({ name: "Sys Admin", icon: "💻", color: "text-blue-500", desc: "OS Mastery" });
+    }
+
+    // Firefighter (High Effort Bug Fixes)
+    const hasFirefighter = entries.some(e => e.workLog.toLowerCase().includes('#bugfix') && e.effortRating === 5);
+    if (hasFirefighter) list.push({ name: "Firefighter", icon: "🧯", color: "text-red-500", desc: "Max Effort Bug Fix" });
+
+    // Polyglot (3+ Strong Skills)
     const strongSkills = skills.filter(s => s.level >= 3).length;
     if (strongSkills >= 3) list.push({ name: "Polyglot", icon: "🧠", color: "text-purple-500", desc: "3+ Skills > Lvl 3" });
-
-    // Stack: Operating Systems check
-    if (allTags.has('OPERATING-SYSTEMS') || allTags.has('OPERATING')) {
-         list.push({ name: "Sys Admin", icon: "💻", color: "text-blue-500", desc: "OS Study" });
-    }
 
     return list;
   }, [entries, skills]);
 
 
-  // --- 3. RADAR CHART MATH ---
+  // --- 3. RADAR CHART RENDERING ---
   const radarPoints = useMemo(() => {
     if (skills.length < 3) return ""; 
-
     const maxXP = Math.max(...skills.map(s => s.xp), 100);
     const radius = 80; 
     const center = 100; 
@@ -124,7 +142,6 @@ export const TechRadar: React.FC<Props> = ({ entries, onClose }) => {
       const y = center + Math.sin(angle) * value;
       return `${x},${y}`;
     });
-
     return points.join(" ");
   }, [skills]);
 
@@ -140,7 +157,7 @@ export const TechRadar: React.FC<Props> = ({ entries, onClose }) => {
   }
 
   return (
-    <div className="animate-fade-in bg-white dark:bg-gray-900 p-8 rounded-xl border border-border dark:border-gray-800 shadow-sm h-full">
+    <div className="animate-fade-in bg-white dark:bg-gray-900 p-8 rounded-xl border border-border dark:border-gray-800 shadow-sm h-full overflow-y-auto">
       <div className="flex justify-between items-center mb-8">
         <div>
             <h2 className="text-2xl font-serif text-gray-900 dark:text-gray-100 flex items-center gap-2">
@@ -155,8 +172,7 @@ export const TechRadar: React.FC<Props> = ({ entries, onClose }) => {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-12">
-        
-        {/* --- LEFT: RADAR CHART --- */}
+        {/* LEFT: RADAR CHART */}
         <div className="flex flex-col items-center justify-center relative">
            {skills.length >= 3 ? (
              <div className="relative w-64 h-64">
@@ -172,27 +188,13 @@ export const TechRadar: React.FC<Props> = ({ entries, onClose }) => {
                         const y = 100 + Math.sin(angle) * 80;
                         return <line key={i} x1="100" y1="100" x2={x} y2={y} stroke="#e2e8f0" strokeWidth="1" className="dark:stroke-gray-700" />;
                     })}
-
-                    <polygon 
-                        points={radarPoints} 
-                        fill="rgba(99, 102, 241, 0.2)" 
-                        stroke="#6366f1" 
-                        strokeWidth="2" 
-                        className="animate-fade-in"
-                    />
-                    
+                    <polygon points={radarPoints} fill="rgba(99, 102, 241, 0.2)" stroke="#6366f1" strokeWidth="2" className="animate-fade-in" />
                     {skills.map((skill, i) => {
                         const angle = (Math.PI * 2 * i) / skills.length - (Math.PI / 2);
                         const x = 100 + Math.cos(angle) * 95; 
                         const y = 100 + Math.sin(angle) * 95;
                         return (
-                            <text 
-                                key={skill.name} 
-                                x={x} y={y} 
-                                textAnchor="middle" 
-                                dominantBaseline="middle"
-                                className="text-[8px] fill-gray-500 dark:fill-gray-400 font-bold uppercase font-mono"
-                            >
+                            <text key={skill.name} x={x} y={y} textAnchor="middle" dominantBaseline="middle" className="text-[8px] fill-gray-500 dark:fill-gray-400 font-bold uppercase font-mono">
                                 {skill.name.slice(0, 10)}
                             </text>
                         );
@@ -201,9 +203,7 @@ export const TechRadar: React.FC<Props> = ({ entries, onClose }) => {
              </div>
            ) : (
              <div className="w-64 h-64 flex items-center justify-center text-center text-gray-400 border-2 border-dashed border-gray-200 rounded-full">
-                <p className="text-xs">
-                    Tag at least 3 distinct skills<br/>to generate Radar.
-                </p>
+                <p className="text-xs">Tag at least 3 distinct skills<br/>to generate Radar.</p>
              </div>
            )}
 
@@ -213,8 +213,6 @@ export const TechRadar: React.FC<Props> = ({ entries, onClose }) => {
                     <div key={badge.name} className="flex flex-col items-center p-2 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 w-20 group relative cursor-help">
                         <span className="text-xl mb-1">{badge.icon}</span>
                         <span className={`text-[8px] font-bold uppercase text-center ${badge.color}`}>{badge.name}</span>
-                        
-                        {/* Hover Tooltip for Badge */}
                         <div className="absolute bottom-full mb-2 hidden group-hover:block w-32 bg-gray-900 text-white text-[10px] p-2 rounded z-10 text-center">
                             {badge.desc}
                         </div>
@@ -223,10 +221,9 @@ export const TechRadar: React.FC<Props> = ({ entries, onClose }) => {
            </div>
         </div>
 
-        {/* --- RIGHT: SKILL LIST --- */}
+        {/* RIGHT: SKILL LIST */}
         <div className="space-y-4">
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Top Skills</h3>
-            
             {skills.map((skill) => (
                 <div key={skill.name} className="group">
                     <div className="flex justify-between items-end mb-1">
@@ -245,30 +242,21 @@ export const TechRadar: React.FC<Props> = ({ entries, onClose }) => {
                         </div>
                         <span className="text-xs font-mono text-gray-400">Lvl {skill.level}</span>
                     </div>
-                    
                     {/* XP Bar */}
                     <div className="h-2 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden relative">
                         <div 
                             className={`h-full rounded-full transition-all duration-1000 ${
                                 skill.status === 'decaying' ? 'bg-red-400' : 'bg-indigo-500'
                             }`}
-                            // FIX 3: Progress reflects XP into NEXT level
                             style={{ width: `${skill.nextLevelProgress}%` }}
                         />
                     </div>
                     <div className="flex justify-between mt-1">
                         <span className="text-[10px] text-gray-400">Total XP: {skill.xp}</span>
-                        {/* FIX 3: Visual indicator of why bar is short */}
                         <span className="text-[10px] text-indigo-400">{skill.nextLevelProgress}/100 to next lvl</span>
                     </div>
                 </div>
             ))}
-
-            {skills.length === 0 && (
-                <div className="text-center py-10 text-gray-400 italic text-sm">
-                    No tagged skills yet.<br/>Try adding #React or #Python to your logs!
-                </div>
-            )}
         </div>
       </div>
     </div>
