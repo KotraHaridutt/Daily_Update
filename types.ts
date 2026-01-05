@@ -7,7 +7,8 @@ export interface LedgerEntry {
   effortRating: number; // 1-5
   freeThought?: string;
   createdAt: number; // Timestamp
-  updatedAt: number; // Timestamp
+  updatedAt: number;
+  nextDayContext?: string; // Timestamp
 }
 
 export interface DailyStats {

@@ -4,6 +4,7 @@ import { LedgerEntry, VALIDATION_LIMITS, VAGUE_WORDS } from '../types';
 import { TextArea, EffortSlider, ActionButton } from './UIComponents';
 import { LedgerService, getTodayISO } from '../services/ledgerService';
 import { ChevronDown, ChevronUp, Lock, AlertCircle, Edit2, Tag, Zap } from 'lucide-react';
+import { ShutdownModal } from './ShutdownModal';
 
 interface Props {
   onSaved: () => void;
@@ -11,6 +12,7 @@ interface Props {
   readOnlyMode?: boolean;
   targetDate?: string;
   allowEdit?: boolean;
+  bootContext?: string;
 }
 
 const QUICK_TAGS = ['#Coding', '#BugFix', '#Meeting', '#Learning', '#Planning', '#Review'];
@@ -53,17 +55,20 @@ export const DailyEntryForm: React.FC<Props> = ({
   initialData, 
   readOnlyMode = false,
   targetDate = getTodayISO(),
-  allowEdit = false 
+  allowEdit = false,
+  bootContext
 }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isShutdownOpen, setIsShutdownOpen] = useState(false);
   
   const [formData, setFormData] = useState({
     workLog: '',
     learningLog: '',
     timeLeakLog: '',
     effortRating: 0,
-    freeThought: ''
+    freeThought: '',
+    nextDayContext: ''
   });
   
   const [showFreeThought, setShowFreeThought] = useState(false);
@@ -74,17 +79,30 @@ export const DailyEntryForm: React.FC<Props> = ({
   const learnRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
+    if (bootContext && !initialData) {
+        // If we have a mission from yesterday, and today is empty, PRE-FILL IT
+        setFormData(prev => ({
+            ...prev,
+            workLog: `**🚀 Yesterday's Promise:**\n${bootContext}\n\n`,
+            nextDayContext: ''
+        }));
+        setIsEditing(true); // Auto-open edit mode
+    }
+  }, [bootContext, initialData]);
+
+  useEffect(() => {
     if (initialData) {
       setFormData({
         workLog: initialData.workLog,
         learningLog: initialData.learningLog,
         timeLeakLog: initialData.timeLeakLog,
         effortRating: initialData.effortRating,
-        freeThought: initialData.freeThought || ''
+        freeThought: initialData.freeThought || '',
+        nextDayContext: initialData.nextDayContext || ''
       });
       if (initialData.freeThought) setShowFreeThought(true);
     } else {
-      setFormData({ workLog: '', learningLog: '', timeLeakLog: '', effortRating: 0, freeThought: '' });
+      setFormData({ workLog: '', learningLog: '', timeLeakLog: '', effortRating: 0, freeThought: '', nextDayContext: '' });
       setShowFreeThought(false);
     }
   }, [initialData]); 
@@ -185,20 +203,36 @@ export const DailyEntryForm: React.FC<Props> = ({
         return { ...prev, [field]: currentVal + prefix + text };
     });
   };
+  // This runs ONLY after you type your "Shutdown Promise" in the modal
+  const handleFinalSave = async (context: string) => {
+    setIsSaving(true);
+    try {
+      await LedgerService.saveEntry({
+        date: targetDate,
+        ...formData,
+        nextDayContext: context // <--- We save the promise here!
+      });
+      
+      setIsShutdownOpen(false); // Close modal
+      setIsEditing(false);      // Close form
+      onSaved();                // Tell App.tsx to reload
+    } catch (error) {
+      alert("Failed to save. Check console.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleSubmit = async () => {
     setHasAttemptedSubmit(true);
     
-    // 1. Check if form is valid
+    // 1. Validation
     if (!validation.isValid) return;
     
-    // --- ⚔️ NEW: BOSS FIGHT LOGIC ⚔️ ---
-    // This checks if you used the special tag before saving
+    // 2. --- ⚔️ BOSS FIGHT LOGIC (Kept intact) ⚔️ ---
     if (formData.workLog.toUpperCase().includes('#PROJECT_LAUNCH')) {
-        // Calculate the "Fake" Loot Drop
         const lootXP = 5000 + (formData.workLog.length * 2);
         
-        // Trigger the Confirmation
         const confirmLaunch = window.confirm(
             `⚔️ BOSS FIGHT DETECTED: #PROJECT_LAUNCH ⚔️\n\n` +
             `You are about to deploy a major milestone.\n` +
@@ -206,24 +240,13 @@ export const DailyEntryForm: React.FC<Props> = ({
             `Are you ready to commit?`
         );
         
-        // If user clicks "Cancel", stop the save
+        // If they click Cancel, we STOP here. No Save. No Shutdown.
         if (!confirmLaunch) return;
     }
-    // -------------------------------------
+    // ------------------------------------------------
 
-    setIsSaving(true);
-    try {
-      await LedgerService.saveEntry({
-        date: targetDate,
-        ...formData
-      });
-      setIsEditing(false);
-      onSaved();
-    } catch (error) {
-      alert("Failed to save. Check console.");
-    } finally {
-      setIsSaving(false);
-    }
+    // 3. Instead of saving, we open the "System Halt" Terminal
+    setIsShutdownOpen(true);
   };
 
   const showValidationFeedback = hasAttemptedSubmit || (
@@ -416,7 +439,12 @@ export const DailyEntryForm: React.FC<Props> = ({
              </div>
            </div>
         )}
-        
+        <ShutdownModal 
+          isOpen={isShutdownOpen}
+          onConfirm={handleFinalSave}
+          onCancel={() => setIsShutdownOpen(false)}
+       />
+
         <ActionButton 
           onClick={handleSubmit} 
           disabled={!validation.isValid || isSaving}

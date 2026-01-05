@@ -6,7 +6,8 @@ import { Calendar } from './components/Calendar';
 import { RightSidebar } from './components/RightSidebar';
 import { CommandPalette } from './components/CommandPalette';
 import { CheatSheet } from './components/CheatSheet'; 
-import { TechRadar } from './components/TechRadar'; // <--- NEW IMPORT
+import { TechRadar } from './components/TechRadar';
+import { BootSequence } from './components/BootSequence';
 import { Loader2, LayoutDashboard, Calendar as CalIcon, Moon, Sun, Search as SearchIcon, Maximize2, Minimize2, BarChart2 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -15,6 +16,8 @@ const App: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<string>(todayISO);
   const [allEntries, setAllEntries] = useState<LedgerEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [bootData, setBootData] = useState<string | null>(null); // To store context
+  const [showBoot, setShowBoot] = useState(false); // To control visibility
   
   // --- UI STATES ---
   const [view, setView] = useState<'entry' | 'stats'>('entry'); // <--- NEW VIEW STATE
@@ -41,6 +44,28 @@ const App: React.FC = () => {
       localStorage.setItem('theme', 'light');
     }
   }, [isDark]);
+
+  useEffect(() => {
+    const checkBoot = async () => {
+        // 1. Get Yesterday's Date
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayISO = yesterday.toISOString().split('T')[0];
+
+        // 2. Find entries
+        const all = await LedgerService.getAllEntries();
+        const todayEntry = all.find(e => e.date === getTodayISO());
+        const yesterdayEntry = all.find(e => e.date === yesterdayISO);
+
+        // 3. Logic: If Today is empty AND Yesterday has context
+        if (!todayEntry && yesterdayEntry?.nextDayContext) {
+            setBootData(yesterdayEntry.nextDayContext);
+            setShowBoot(true);
+        }
+    };
+    checkBoot();
+  }, []);
 
   // --- GLOBAL KEYBOARD SHORTCUTS ---
   useEffect(() => {
@@ -94,6 +119,10 @@ const App: React.FC = () => {
       setIsLoading(false);
     }
   };
+  const handleBootComplete = (accepted: boolean) => {
+    setShowBoot(false);
+    if (!accepted) setBootData(null); // Clear data if rejected
+  };
 
   useEffect(() => {
     loadData();
@@ -136,7 +165,7 @@ const App: React.FC = () => {
 
       {/* --- LEFT SIDEBAR --- */}
       <aside className={`
-        w-full lg:w-72 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex-shrink-0 
+        w-full lg:w-72 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 shrink-0 
         h-auto lg:h-screen sticky top-0 overflow-y-auto transition-all duration-500 ease-in-out
         ${isZenMode ? '-ml-72 opacity-0 lg:w-0 overflow-hidden' : 'opacity-100'}
       `}>
@@ -219,7 +248,7 @@ const App: React.FC = () => {
       </aside>
 
       {/* --- CENTER STAGE --- */}
-      <main className="flex-grow p-4 md:p-8 lg:p-12 overflow-y-auto bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
+      <main className="grow p-4 md:p-8 lg:p-12 overflow-y-auto bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
         <div className="max-w-2xl mx-auto">
             {view === 'stats' ? (
                 // --- VIEW 1: TECH RADAR ---
@@ -252,6 +281,7 @@ const App: React.FC = () => {
                         onSaved={handleSave}
                         readOnlyMode={!checkIfEditable(selectedDate) && !!currentEntry} 
                         allowEdit={checkIfEditable(selectedDate)}
+                        bootContext={showBoot === false && bootData ? bootData : undefined}
                     />
                 </>
             )}
@@ -260,7 +290,7 @@ const App: React.FC = () => {
 
       {/* --- RIGHT SIDEBAR --- */}
       <aside className={`
-        w-full lg:w-80 bg-gray-50/50 dark:bg-gray-900/50 border-l border-gray-200 dark:border-gray-800 flex-shrink-0 
+        w-full lg:w-80 bg-gray-50/50 dark:bg-gray-900/50 border-l border-gray-200 dark:border-gray-800 shrink-0 
         h-auto lg:h-screen lg:sticky lg:top-0 overflow-y-auto p-6 hidden xl:block transition-all duration-500 ease-in-out
         ${isZenMode ? '-mr-80 opacity-0 lg:w-0 overflow-hidden' : 'opacity-100'}
       `}>
