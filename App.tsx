@@ -7,8 +7,9 @@ import { RightSidebar } from './components/RightSidebar';
 import { CommandPalette } from './components/CommandPalette';
 import { CheatSheet } from './components/CheatSheet'; 
 import { TechRadar } from './components/TechRadar';
-import { BootSequence } from './components/BootSequence';
-import { Loader2, LayoutDashboard, Calendar as CalIcon, Moon, Sun, Search as SearchIcon, Maximize2, Minimize2, BarChart2 } from 'lucide-react';
+import { Grimoire } from './components/Grimoire';
+import { BootSequence } from './components/BootSequence'; // <--- Ensure this is imported
+import { Loader2, LayoutDashboard, Calendar as CalIcon, Moon, Sun, Search as SearchIcon, Maximize2, Minimize2, BarChart2, BookOpen } from 'lucide-react';
 
 const App: React.FC = () => {
   const [stats, setStats] = useState<DailyStats | null>(null);
@@ -16,11 +17,14 @@ const App: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<string>(todayISO);
   const [allEntries, setAllEntries] = useState<LedgerEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [bootData, setBootData] = useState<string | null>(null); // To store context
-  const [showBoot, setShowBoot] = useState(false); // To control visibility
+  
+  // --- BOOT STATE ---
+  const [bootData, setBootData] = useState<string | null>(null);
+  const [showBoot, setShowBoot] = useState(false);
+
+  const [view, setView] = useState<'entry' | 'stats' | 'grimoire'>('entry');
   
   // --- UI STATES ---
-  const [view, setView] = useState<'entry' | 'stats'>('entry'); // <--- NEW VIEW STATE
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isCheatSheetOpen, setIsCheatSheetOpen] = useState(false);
   const [isZenMode, setIsZenMode] = useState(false);
@@ -66,6 +70,11 @@ const App: React.FC = () => {
     };
     checkBoot();
   }, []);
+
+  const handleBootComplete = (accepted: boolean) => {
+    setShowBoot(false);
+    if (!accepted) setBootData(null); // Clear data if rejected
+  };
 
   // --- GLOBAL KEYBOARD SHORTCUTS ---
   useEffect(() => {
@@ -119,10 +128,6 @@ const App: React.FC = () => {
       setIsLoading(false);
     }
   };
-  const handleBootComplete = (accepted: boolean) => {
-    setShowBoot(false);
-    if (!accepted) setBootData(null); // Clear data if rejected
-  };
 
   useEffect(() => {
     loadData();
@@ -149,8 +154,16 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-ink dark:text-gray-100 flex flex-col lg:flex-row font-sans selection:bg-green-200 dark:selection:bg-green-900 transition-colors duration-300">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-ink dark:text-gray-100 flex flex-col lg:flex-row font-sans selection:bg-green-200 dark:selection:bg-green-900 transition-colors duration-300 relative">
       
+      {/* --- 🚀 BOOT OVERLAY ADDED HERE --- */}
+      {showBoot && bootData && (
+          <BootSequence 
+            context={bootData} 
+            onComplete={handleBootComplete} 
+          />
+      )}
+
       <CommandPalette 
         isOpen={isSearchOpen} 
         setIsOpen={setIsSearchOpen}
@@ -207,19 +220,31 @@ const App: React.FC = () => {
             />
           </div>
           
-          {/* STATS TOGGLE BUTTON */}
-          <div className="mb-8">
-            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Analytics</h2>
+          <div className="space-y-2 mb-8">
+            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Knowledge Base</h2>
+            
             <button 
                 onClick={() => setView('stats')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold transition-colors ${
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
                     view === 'stats' 
                     ? 'bg-ink text-white dark:bg-white dark:text-gray-900 shadow-md' 
                     : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
             >
                 <BarChart2 className="w-4 h-4" />
-                View Tech Radar
+                Tech Radar
+            </button>
+
+            <button 
+                onClick={() => setView('grimoire')}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
+                    view === 'grimoire' 
+                    ? 'bg-purple-600 text-white shadow-md' 
+                    : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+            >
+                <BookOpen className="w-4 h-4" />
+                Grimoire
             </button>
           </div>
 
@@ -251,10 +276,10 @@ const App: React.FC = () => {
       <main className="grow p-4 md:p-8 lg:p-12 overflow-y-auto bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
         <div className="max-w-2xl mx-auto">
             {view === 'stats' ? (
-                // --- VIEW 1: TECH RADAR ---
                 <TechRadar entries={allEntries} onClose={() => setView('entry')} />
+            ) : view === 'grimoire' ? (
+                <Grimoire entries={allEntries} onClose={() => setView('entry')} />
             ) : (
-                // --- VIEW 2: DAILY ENTRY ---
                 <>
                     <div className="mb-8 flex items-baseline justify-between">
                         <h2 className="text-2xl font-serif text-gray-900 dark:text-gray-100">
@@ -281,6 +306,7 @@ const App: React.FC = () => {
                         onSaved={handleSave}
                         readOnlyMode={!checkIfEditable(selectedDate) && !!currentEntry} 
                         allowEdit={checkIfEditable(selectedDate)}
+                        onSummon={() => setView('grimoire')}
                         bootContext={showBoot === false && bootData ? bootData : undefined}
                     />
                 </>

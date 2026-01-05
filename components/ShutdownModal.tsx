@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Power, ArrowRight, Save } from 'lucide-react';
+import { Power, ArrowRight, Save, X, FastForward } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -14,9 +14,10 @@ export const ShutdownModal: React.FC<Props> = ({ isOpen, onConfirm, onCancel }) 
   useEffect(() => {
     if (isOpen) {
       setStep(1);
-      setTimeout(() => setStep(2), 500); // Delay for dramatic effect
+      setTimeout(() => setStep(2), 500); 
     } else {
       setStep(0);
+      setContext(''); // Reset text on close
     }
   }, [isOpen]);
 
@@ -48,26 +49,42 @@ export const ShutdownModal: React.FC<Props> = ({ isOpen, onConfirm, onCancel }) 
 
             <textarea 
                 className="w-full bg-gray-900 border border-gray-700 text-green-400 p-4 rounded focus:outline-none focus:border-green-500 transition-colors h-32 text-sm"
-                placeholder="// e.g. Fix the Auth Bug, then Refactor API..."
+                placeholder="// e.g. Fix the Auth Bug... (Or click Skip)"
                 value={context}
                 onChange={e => setContext(e.target.value)}
                 autoFocus
             />
             
-            <div className="flex justify-end gap-4 mt-6">
+            <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-800">
+                
+                {/* BUTTON 1: BACK (Don't Save) */}
                 <button 
                     onClick={onCancel}
-                    className="text-gray-500 hover:text-gray-300 text-xs uppercase font-bold tracking-wider px-4 py-2"
+                    className="text-gray-500 hover:text-white text-xs uppercase font-bold tracking-wider flex items-center gap-2"
                 >
-                    Cancel
+                    <X className="w-3 h-3" />
+                    Back
                 </button>
-                <button 
-                    onClick={() => onConfirm(context)}
-                    className="bg-green-600 hover:bg-green-500 text-black font-bold text-xs uppercase tracking-wider px-6 py-2 rounded flex items-center gap-2 transition-all hover:shadow-[0_0_15px_rgba(34,197,94,0.4)]"
-                >
-                    <Power className="w-4 h-4" />
-                    Commit & Shutdown
-                </button>
+
+                <div className="flex gap-3">
+                    {/* BUTTON 2: SKIP (Quick Save) */}
+                    <button 
+                        onClick={() => onConfirm('')} // Sends empty string -> Just Saves
+                        className="text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 px-4 py-2 rounded text-xs uppercase font-bold tracking-wider transition-all flex items-center gap-2"
+                    >
+                        <FastForward className="w-3 h-3" />
+                        Skip
+                    </button>
+
+                    {/* BUTTON 3: COMMIT (Full RPG Save) */}
+                    <button 
+                        onClick={() => onConfirm(context)}
+                        className="bg-green-600 hover:bg-green-500 text-black font-bold text-xs uppercase tracking-wider px-4 py-2 rounded flex items-center gap-2 transition-all hover:shadow-[0_0_15px_rgba(34,197,94,0.4)]"
+                    >
+                        <Power className="w-3 h-3" />
+                        Commit
+                    </button>
+                </div>
             </div>
         </div>
       </div>

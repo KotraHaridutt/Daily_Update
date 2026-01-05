@@ -13,6 +13,7 @@ interface Props {
   targetDate?: string;
   allowEdit?: boolean;
   bootContext?: string;
+  onSummon?: () => void;
 }
 
 const QUICK_TAGS = ['#Coding', '#BugFix', '#Meeting', '#Learning', '#Planning', '#Review'];
@@ -56,6 +57,7 @@ export const DailyEntryForm: React.FC<Props> = ({
   readOnlyMode = false,
   targetDate = getTodayISO(),
   allowEdit = false,
+  onSummon,
   bootContext
 }) => {
   const [isSaving, setIsSaving] = useState(false);
@@ -165,6 +167,13 @@ export const DailyEntryForm: React.FC<Props> = ({
   // --- SNIPPET & MARKDOWN HANDLER ---
   const handleTextChange = (field: keyof typeof formData, val: string, e: React.ChangeEvent<HTMLTextAreaElement>) => {
     // Check for Snippets (Level 3)
+    if (val.endsWith(';;summon') && onSummon) {
+        // Remove the command text
+        const cleanVal = val.slice(0, -8); // remove ';;summon'
+        setFormData({ ...formData, [field]: cleanVal });
+        onSummon(); // Trigger the view switch
+        return;
+    }
     let finalVal = val;
     Object.entries(SNIPPETS).forEach(([key, snippet]) => {
         if (val.endsWith(key)) {

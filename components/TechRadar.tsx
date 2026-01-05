@@ -199,11 +199,11 @@ export const TechRadar: React.FC<Props> = ({ entries, onClose }) => {
                         <h4 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">2. Mechanics</h4>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="bg-red-50 dark:bg-red-900/10 p-4 rounded-lg border border-red-100 dark:border-red-900/30">
-                                <strong className="text-red-600 block mb-1 flex items-center gap-2"><AlertTriangle className="w-3 h-3"/> Skill Decay</strong>
+                                <div className="text-red-600 mb-1 flex items-center gap-2 font-bold"><AlertTriangle className="w-3 h-3"/> Skill Decay</div>
                                 <p className="text-xs text-gray-600 dark:text-gray-400">If you don't use a tag for <strong>14 days</strong>, the skill will begin to rust. Log an entry to repair it.</p>
                             </div>
                             <div className="bg-yellow-50 dark:bg-yellow-900/10 p-4 rounded-lg border border-yellow-100 dark:border-yellow-900/30">
-                                <strong className="text-yellow-600 block mb-1 flex items-center gap-2"><Sword className="w-3 h-3"/> Boss Fight</strong>
+                                <div className="text-yellow-600 mb-1 flex items-center gap-2 font-bold"><Sword className="w-3 h-3"/> Boss Fight</div>
                                 <p className="text-xs text-gray-600 dark:text-gray-400">When finishing a major project, use tag <code className="bg-white dark:bg-gray-800 px-1 rounded">#PROJECT_LAUNCH</code> for a massive XP drop.</p>
                             </div>
                         </div>
