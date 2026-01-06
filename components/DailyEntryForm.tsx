@@ -5,6 +5,8 @@ import { TextArea, EffortSlider, ActionButton } from './UIComponents';
 import { LedgerService, getTodayISO } from '../services/ledgerService';
 import { ChevronDown, ChevronUp, Lock, AlertCircle, Edit2, Tag, Zap } from 'lucide-react';
 import { ShutdownModal } from './ShutdownModal';
+import { useAudioBiome } from './hooks/useAudioBiome';
+import { AudioController } from './AudioController';  
 
 interface Props {
   onSaved: () => void;
@@ -57,6 +59,7 @@ export const DailyEntryForm: React.FC<Props> = ({
   readOnlyMode = false,
   targetDate = getTodayISO(),
   allowEdit = false,
+  
   onSummon,
   bootContext
 }) => {
@@ -75,6 +78,7 @@ export const DailyEntryForm: React.FC<Props> = ({
   
   const [showFreeThought, setShowFreeThought] = useState(false);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const { isPlaying, togglePlay, currentBiome, intensity, triggerTyping } = useAudioBiome(formData.workLog);
 
   // Refs for Focus Macros
   const workRef = useRef<HTMLTextAreaElement>(null);
@@ -185,6 +189,7 @@ export const DailyEntryForm: React.FC<Props> = ({
 
   // Helper for Ctrl+B (Bold)
   const handleKeyDownTextArea = (e: React.KeyboardEvent<HTMLTextAreaElement>, field: keyof typeof formData) => {
+    triggerTyping();
     if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
         e.preventDefault();
         const textarea = e.currentTarget;
@@ -452,6 +457,12 @@ export const DailyEntryForm: React.FC<Props> = ({
           isOpen={isShutdownOpen}
           onConfirm={handleFinalSave}
           onCancel={() => setIsShutdownOpen(false)}
+       />
+       <AudioController 
+            isPlaying={isPlaying} 
+            togglePlay={togglePlay} 
+            currentBiome={currentBiome}
+            intensity={intensity}
        />
 
         <ActionButton 
