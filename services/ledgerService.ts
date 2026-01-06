@@ -141,5 +141,24 @@ export const LedgerService = {
       totalEntries: sortedDates.length,
       completionRate: Math.round((sortedDates.length / totalDaysSinceStart) * 100)
     };
+  },
+
+  // GET RANDOM PAST ENTRY FOR GHOST
+  getGhostMemory: async (): Promise<{ date: string; content: string } | null> => {
+    const entries = await LedgerService.getAllEntries();
+    if (entries.length === 0) return null;
+
+    // Get a random entry from the past (not today)
+    const today = getTodayISO();
+    const pastEntries = entries.filter(e => e.date !== today && e.workLog.length > 50);
+    
+    if (pastEntries.length === 0) return null;
+
+    const randomEntry = pastEntries[Math.floor(Math.random() * pastEntries.length)];
+    
+    return {
+      date: randomEntry.date,
+      content: randomEntry.workLog
+    };
   }
 };

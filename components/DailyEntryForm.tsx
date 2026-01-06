@@ -8,6 +8,7 @@ import { ShutdownModal } from './ShutdownModal';
 import { useAudioBiome } from './hooks/useAudioBiome';
 import { AudioController } from './AudioController';  
 import { PanicMode } from './PanicMode';
+import { MnemosyneGhost } from './MnemosyneGhost';
 
 interface Props {
   onSaved: () => void;
@@ -69,6 +70,7 @@ export const DailyEntryForm: React.FC<Props> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [isShutdownOpen, setIsShutdownOpen] = useState(false);
   const [isPanicOpen, setIsPanicOpen] = useState(false);
+  const [ghostMemory, setGhostMemory] = useState<{ date: string; content: string } | null>(null);
   
   const [formData, setFormData] = useState({
     workLog: '',
@@ -115,6 +117,21 @@ export const DailyEntryForm: React.FC<Props> = ({
       setShowFreeThought(false);
     }
   }, [initialData]); 
+
+  useEffect(() => {
+    const summonGhost = async () => {
+        // 10% chance to be haunted on load
+        // CHANGE 0.1 to 1.0 TO TEST IT NOW
+        //if (Math.random() > 0.1) return; 
+
+        console.log("👻 Summoning Mnemosyne...");
+        const memory = await LedgerService.getGhostMemory();
+        if (memory) {
+            setGhostMemory(memory);
+        }
+    };
+    summonGhost();
+  }, []);
 
   useEffect(() => {
     const isToday = targetDate === getTodayISO();
@@ -195,6 +212,17 @@ export const DailyEntryForm: React.FC<Props> = ({
         }
     });
     setFormData({ ...formData, [field]: finalVal });
+  };
+
+  const handleGhostReinforce = () => {
+      // Logic to reward XP would go here
+      // For now, we just close it after the animation
+      setTimeout(() => setGhostMemory(null), 1500);
+  };
+
+  const handleGhostDiscard = () => {
+      // Logic to mark as 'forgotten' would go here
+      setTimeout(() => setGhostMemory(null), 1000);
   };
 
   // Helper for Ctrl+B (Bold)
@@ -495,6 +523,14 @@ export const DailyEntryForm: React.FC<Props> = ({
          isOpen={isPanicOpen} 
          onClose={handlePanicClose} 
        />
+
+        <MnemosyneGhost 
+           memory={ghostMemory}
+           onClose={() => setGhostMemory(null)}
+           onReinforce={handleGhostReinforce}
+           onDiscard={handleGhostDiscard}
+       />
+
           {isSaving ? 'Saving...' : (initialData ? 'Update Entry' : 'Commit Entry')}
         </ActionButton>
       </div>
