@@ -8,7 +8,8 @@ import { CommandPalette } from './components/CommandPalette';
 import { CheatSheet } from './components/CheatSheet'; 
 import { TechRadar } from './components/TechRadar';
 import { Grimoire } from './components/Grimoire';
-import { BootSequence } from './components/BootSequence'; // <--- Ensure this is imported
+import { BootSequence } from './components/BootSequence';
+import { TheCartographer } from './components/TheCartographer';
 import { Loader2, LayoutDashboard, Calendar as CalIcon, Moon, Sun, Search as SearchIcon, Maximize2, Minimize2, BarChart2, BookOpen } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -22,7 +23,7 @@ const App: React.FC = () => {
   const [bootData, setBootData] = useState<string | null>(null);
   const [showBoot, setShowBoot] = useState(false);
 
-  const [view, setView] = useState<'entry' | 'stats' | 'grimoire'>('entry');
+  const [view, setView] = useState<'entry' | 'stats' | 'grimoire' | 'map'>('entry');
   
   // --- UI STATES ---
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -246,6 +247,18 @@ const App: React.FC = () => {
                 <BookOpen className="w-4 h-4" />
                 Grimoire
             </button>
+
+            <button 
+                onClick={() => setView('map')}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
+                    view === 'map' 
+                    ? 'bg-emerald-600 text-white shadow-md' 
+                    : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+            >
+                <LayoutDashboard className="w-4 h-4" />
+                Map
+            </button>
           </div>
 
           {stats && (
@@ -279,6 +292,8 @@ const App: React.FC = () => {
                 <TechRadar entries={allEntries} onClose={() => setView('entry')} />
             ) : view === 'grimoire' ? (
                 <Grimoire entries={allEntries} onClose={() => setView('entry')} />
+            ) : view === 'map' ? (
+                <TheCartographer />
             ) : (
                 <>
                     <div className="mb-8 flex items-baseline justify-between">

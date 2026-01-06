@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { LedgerEntry, VALIDATION_LIMITS, VAGUE_WORDS } from '../types';
+import { LedgerEntry, VALIDATION_LIMITS } from '../types';
 import { TextArea, EffortSlider, ActionButton } from './UIComponents';
 import { LedgerService, getTodayISO } from '../services/ledgerService';
 import { ChevronDown, ChevronUp, Lock, AlertCircle, Edit2, Tag, Zap } from 'lucide-react';
 import { ShutdownModal } from './ShutdownModal';
 import { useAudioBiome } from './hooks/useAudioBiome';
-import { AudioController } from './AudioController';  
+import { AudioController } from './AudioController';
 import { PanicMode } from './PanicMode';
-import { MnemosyneGhost } from './MnemosyneGhost';
 
 interface Props {
   onSaved: () => void;
@@ -59,10 +58,8 @@ export const DailyEntryForm: React.FC<Props> = ({
   onSaved, 
   initialData, 
   readOnlyMode = false,
-  
   targetDate = getTodayISO(),
   allowEdit = false,
-  
   onSummon,
   bootContext
 }) => {
@@ -70,7 +67,6 @@ export const DailyEntryForm: React.FC<Props> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [isShutdownOpen, setIsShutdownOpen] = useState(false);
   const [isPanicOpen, setIsPanicOpen] = useState(false);
-  const [ghostMemory, setGhostMemory] = useState<{ date: string; content: string } | null>(null);
   
   const [formData, setFormData] = useState({
     workLog: '',
@@ -119,21 +115,6 @@ export const DailyEntryForm: React.FC<Props> = ({
   }, [initialData]); 
 
   useEffect(() => {
-    const summonGhost = async () => {
-        // 10% chance to be haunted on load
-        // CHANGE 0.1 to 1.0 TO TEST IT NOW
-        //if (Math.random() > 0.1) return; 
-
-        console.log("👻 Summoning Mnemosyne...");
-        const memory = await LedgerService.getGhostMemory();
-        if (memory) {
-            setGhostMemory(memory);
-        }
-    };
-    summonGhost();
-  }, []);
-
-  useEffect(() => {
     const isToday = targetDate === getTodayISO();
     const hasData = initialData && (initialData.workLog.length > 0 || initialData.learningLog.length > 0);
     if (isToday && !hasData) {
@@ -156,7 +137,6 @@ export const DailyEntryForm: React.FC<Props> = ({
             }
             if (e.key.toLowerCase() === 'w') {
                 e.preventDefault();
-                // We use getElementById because passing Refs through custom components can be tricky without forwardRef
                 document.getElementById('workLog-input')?.focus(); 
             }
             if (e.key.toLowerCase() === 'l') {
@@ -174,7 +154,7 @@ export const DailyEntryForm: React.FC<Props> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isEditing, formData]); // Re-bind when data changes so handleSubmit has latest state
+  }, [isEditing, formData]);
 
   const validation = useMemo(() => {
     const workLen = formData.workLog.length;
@@ -190,21 +170,21 @@ export const DailyEntryForm: React.FC<Props> = ({
 
   // --- SNIPPET & MARKDOWN HANDLER ---
   const handleTextChange = (field: keyof typeof formData, val: string, e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    triggerTyping();
+
     // Check for Snippets (Level 3)
     if (val.endsWith(';;summon') && onSummon) {
-        // Remove the command text
         const cleanVal = val.slice(0, -8); // remove ';;summon'
         setFormData({ ...formData, [field]: cleanVal });
         onSummon(); // Trigger the view switch
         return;
     }
     if (val.endsWith(';;panic')) {
-        // Remove the trigger word
         setFormData({ ...formData, [field]: val.slice(0, -7) });
-        // Open the Overlay
         setIsPanicOpen(true);
         return;
     }
+
     let finalVal = val;
     Object.entries(SNIPPETS).forEach(([key, snippet]) => {
         if (val.endsWith(key)) {
@@ -212,17 +192,6 @@ export const DailyEntryForm: React.FC<Props> = ({
         }
     });
     setFormData({ ...formData, [field]: finalVal });
-  };
-
-  const handleGhostReinforce = () => {
-      // Logic to reward XP would go here
-      // For now, we just close it after the animation
-      setTimeout(() => setGhostMemory(null), 1500);
-  };
-
-  const handleGhostDiscard = () => {
-      // Logic to mark as 'forgotten' would go here
-      setTimeout(() => setGhostMemory(null), 1000);
   };
 
   // Helper for Ctrl+B (Bold)
@@ -241,9 +210,6 @@ export const DailyEntryForm: React.FC<Props> = ({
         // Wrap selected text in bold
         const newVal = `${before}**${selected}**${after}`;
         setFormData({ ...formData, [field]: newVal });
-        
-        // We need to wait for react re-render to set cursor, practically hard in simple handler
-        // But the text update works.
     }
   };
 
@@ -255,16 +221,17 @@ export const DailyEntryForm: React.FC<Props> = ({
         return { ...prev, [field]: currentVal + prefix + text };
     });
   };
+
   const handlePanicClose = (report: string) => {
     setIsPanicOpen(false);
     if (report) {
-        // Append the incident report to the Work Log
         setFormData(prev => ({
             ...prev,
             workLog: prev.workLog + '\n\n' + report + '\n\n'
         }));
     }
   };
+
   // This runs ONLY after you type your "Shutdown Promise" in the modal
   const handleFinalSave = async (context: string) => {
     setIsSaving(true);
@@ -272,7 +239,7 @@ export const DailyEntryForm: React.FC<Props> = ({
       await LedgerService.saveEntry({
         date: targetDate,
         ...formData,
-        nextDayContext: context // <--- We save the promise here!
+        nextDayContext: context
       });
       
       setIsShutdownOpen(false); // Close modal
@@ -291,7 +258,7 @@ export const DailyEntryForm: React.FC<Props> = ({
     // 1. Validation
     if (!validation.isValid) return;
     
-    // 2. --- ⚔️ BOSS FIGHT LOGIC (Kept intact) ⚔️ ---
+    // 2. --- ⚔️ BOSS FIGHT LOGIC ⚔️ ---
     if (formData.workLog.toUpperCase().includes('#PROJECT_LAUNCH')) {
         const lootXP = 5000 + (formData.workLog.length * 2);
         
@@ -302,7 +269,6 @@ export const DailyEntryForm: React.FC<Props> = ({
             `Are you ready to commit?`
         );
         
-        // If they click Cancel, we STOP here. No Save. No Shutdown.
         if (!confirmLaunch) return;
     }
     // ------------------------------------------------
@@ -501,36 +467,31 @@ export const DailyEntryForm: React.FC<Props> = ({
              </div>
            </div>
         )}
+        
         <ShutdownModal 
           isOpen={isShutdownOpen}
           onConfirm={handleFinalSave}
           onCancel={() => setIsShutdownOpen(false)}
-       />
-       <AudioController 
+        />
+        
+        <AudioController 
             isPlaying={isPlaying} 
             togglePlay={togglePlay} 
             currentBiome={currentBiome}
             intensity={intensity}
-       />
+        />
+
+        {/* Panic Mode Overlay (Placed outside button for correct DOM structure) */}
+        <PanicMode 
+            isOpen={isPanicOpen} 
+            onClose={handlePanicClose} 
+        />
 
         <ActionButton 
           onClick={handleSubmit} 
           disabled={!validation.isValid || isSaving}
           className="w-full"
         >
-        
-        <PanicMode 
-         isOpen={isPanicOpen} 
-         onClose={handlePanicClose} 
-       />
-
-        <MnemosyneGhost 
-           memory={ghostMemory}
-           onClose={() => setGhostMemory(null)}
-           onReinforce={handleGhostReinforce}
-           onDiscard={handleGhostDiscard}
-       />
-
           {isSaving ? 'Saving...' : (initialData ? 'Update Entry' : 'Commit Entry')}
         </ActionButton>
       </div>
