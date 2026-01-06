@@ -7,6 +7,7 @@ import { ChevronDown, ChevronUp, Lock, AlertCircle, Edit2, Tag, Zap } from 'luci
 import { ShutdownModal } from './ShutdownModal';
 import { useAudioBiome } from './hooks/useAudioBiome';
 import { AudioController } from './AudioController';  
+import { PanicMode } from './PanicMode';
 
 interface Props {
   onSaved: () => void;
@@ -57,6 +58,7 @@ export const DailyEntryForm: React.FC<Props> = ({
   onSaved, 
   initialData, 
   readOnlyMode = false,
+  
   targetDate = getTodayISO(),
   allowEdit = false,
   
@@ -66,6 +68,7 @@ export const DailyEntryForm: React.FC<Props> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isShutdownOpen, setIsShutdownOpen] = useState(false);
+  const [isPanicOpen, setIsPanicOpen] = useState(false);
   
   const [formData, setFormData] = useState({
     workLog: '',
@@ -178,6 +181,13 @@ export const DailyEntryForm: React.FC<Props> = ({
         onSummon(); // Trigger the view switch
         return;
     }
+    if (val.endsWith(';;panic')) {
+        // Remove the trigger word
+        setFormData({ ...formData, [field]: val.slice(0, -7) });
+        // Open the Overlay
+        setIsPanicOpen(true);
+        return;
+    }
     let finalVal = val;
     Object.entries(SNIPPETS).forEach(([key, snippet]) => {
         if (val.endsWith(key)) {
@@ -216,6 +226,16 @@ export const DailyEntryForm: React.FC<Props> = ({
         const prefix = currentVal.length > 0 ? '\n' : ''; 
         return { ...prev, [field]: currentVal + prefix + text };
     });
+  };
+  const handlePanicClose = (report: string) => {
+    setIsPanicOpen(false);
+    if (report) {
+        // Append the incident report to the Work Log
+        setFormData(prev => ({
+            ...prev,
+            workLog: prev.workLog + '\n\n' + report + '\n\n'
+        }));
+    }
   };
   // This runs ONLY after you type your "Shutdown Promise" in the modal
   const handleFinalSave = async (context: string) => {
@@ -470,6 +490,11 @@ export const DailyEntryForm: React.FC<Props> = ({
           disabled={!validation.isValid || isSaving}
           className="w-full"
         >
+        
+        <PanicMode 
+         isOpen={isPanicOpen} 
+         onClose={handlePanicClose} 
+       />
           {isSaving ? 'Saving...' : (initialData ? 'Update Entry' : 'Commit Entry')}
         </ActionButton>
       </div>
