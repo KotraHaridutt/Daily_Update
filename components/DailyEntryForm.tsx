@@ -3,13 +3,13 @@ import ReactMarkdown from 'react-markdown';
 import { LedgerEntry, VALIDATION_LIMITS } from '../types';
 import { TextArea, EffortSlider, ActionButton } from './UIComponents';
 import { LedgerService, getTodayISO } from '../services/ledgerService';
-import { ChevronDown, ChevronUp, Lock, AlertCircle, Edit2, Tag, Zap, Sparkles, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Lock, AlertCircle, Edit2, Tag, Zap, Sparkles, Loader2, CheckCircle, BrainCircuit, Brain, Eye, EyeOff, HelpCircle } from 'lucide-react';
 import { ShutdownModal } from './ShutdownModal';
 import { useAudioBiome } from './hooks/useAudioBiome';
 import { AudioController } from './AudioController';
 import { PanicMode } from './PanicMode';
-import { generateSmartTags, analyzeVibe, VibeCheckResult } from '../services/aiService'; 
-import { BrainCircuit } from 'lucide-react';
+// Ensure these imports match your actual file structure
+import { generateSmartTags, analyzeVibe, generateChallenge, ChallengeResult } from '../services/aiService';
 
 interface Props {
   onSaved: () => void;
@@ -75,6 +75,11 @@ export const DailyEntryForm: React.FC<Props> = ({
   const [vibeLoading, setVibeLoading] = useState(false);
   const [aiObservation, setAiObservation] = useState<string | null>(null);
 
+  // 🧠 SOCRATIC CHALLENGE STATE (Moved Inside Component)
+  const [isChallengeLoading, setIsChallengeLoading] = useState(false);
+  const [challenge, setChallenge] = useState<ChallengeResult | null>(null);
+  const [showAnswer, setShowAnswer] = useState(false);
+
   const [formData, setFormData] = useState({
     workLog: '',
     learningLog: '',
@@ -93,6 +98,23 @@ export const DailyEntryForm: React.FC<Props> = ({
   const workRef = useRef<HTMLTextAreaElement>(null);
   const learnRef = useRef<HTMLTextAreaElement>(null);
 
+  // --- HANDLERS ---
+  const handleChallenge = async () => {
+    if (formData.learningLog.length < 3) {
+        alert("Type what you learned first!");
+        return;
+    }
+    setIsChallengeLoading(true);
+    setChallenge(null);
+    setShowAnswer(false);
+
+    const result = await generateChallenge(formData.learningLog);
+    if (result) {
+        setChallenge(result);
+    }
+    setIsChallengeLoading(false);
+  };
+
   const handleVibeCheck = async () => {
       if (formData.workLog.length < 10) {
           alert("Write more text first!");
@@ -100,22 +122,17 @@ export const DailyEntryForm: React.FC<Props> = ({
       }
       
       setVibeLoading(true);
-      setAiObservation(null); // Reset previous message
+      setAiObservation(null);
 
       const result = await analyzeVibe(formData.workLog);
       
       if (result) {
-          // Update Form Data automatically
           setFormData(prev => ({
               ...prev,
               mood: result.mood,
               effortRating: result.effort
           }));
-
-          // Show the AI's "Psychologist" note
           setAiObservation(result.observation);
-          
-          // Hide note after 5 seconds
           setTimeout(() => setAiObservation(null), 5000);
       }
       setVibeLoading(false);
@@ -141,11 +158,11 @@ export const DailyEntryForm: React.FC<Props> = ({
         effortRating: initialData.effortRating,
         freeThought: initialData.freeThought || '',
         nextDayContext: initialData.nextDayContext || '',
-        mood: 'neutral' as 'flow' | 'stuck' | 'chill' | 'neutral'
+        mood: initialData.mood || 'neutral'
       });
       if (initialData.freeThought) setShowFreeThought(true);
     } else {
-      setFormData({ workLog: '', learningLog: '', timeLeakLog: '', effortRating: 0, freeThought: '', nextDayContext: '', mood: 'neutral' as 'flow' | 'stuck' | 'chill' | 'neutral' });
+      setFormData({ workLog: '', learningLog: '', timeLeakLog: '', effortRating: 0, freeThought: '', nextDayContext: '', mood: 'neutral' });
       setShowFreeThought(false);
     }
   }, [initialData]); 
@@ -254,26 +271,19 @@ export const DailyEntryForm: React.FC<Props> = ({
 
   // --- 🤖 AI AUTO TAG HANDLER ---
   const handleAutoTag = async () => {
-      // 1. Guard clause: Don't run if text is too short
       if (formData.workLog.length < 10) {
           alert("Please write a bit more before asking AI to tag!");
           return;
       }
-
       setIsAiLoading(true);
-      
-      // 2. Call the Service
       const newTags = await generateSmartTags(formData.workLog);
       
-      // 3. Append tags to WorkLog
       if (newTags.length > 0) {
           const tagsString = newTags.join(' ');
           appendText('workLog', tagsString);
       } else {
-          // If AI fails or returns nothing (maybe API key is wrong)
           alert("AI couldn't generate tags. Check console for API Key errors.");
       }
-
       setIsAiLoading(false);
   };
 
@@ -295,7 +305,6 @@ export const DailyEntryForm: React.FC<Props> = ({
         ...formData,
         nextDayContext: context
       });
-      
       setIsShutdownOpen(false); 
       setIsEditing(false);      
       onSaved();                
@@ -308,18 +317,12 @@ export const DailyEntryForm: React.FC<Props> = ({
 
   const handleSubmit = async () => {
     setHasAttemptedSubmit(true);
-    
     if (!validation.isValid) return;
     
     if (formData.workLog.toUpperCase().includes('#PROJECT_LAUNCH')) {
-        const lootXP = 5000 + (formData.workLog.length * 2);
-        const confirmLaunch = window.confirm(
-            `⚔️ BOSS FIGHT DETECTED: #PROJECT_LAUNCH ⚔️\n\n` +
-            `Are you ready to commit?`
-        );
+        const confirmLaunch = window.confirm(`⚔️ BOSS FIGHT DETECTED: #PROJECT_LAUNCH ⚔️\n\nAre you ready to commit?`);
         if (!confirmLaunch) return;
     }
-
     setIsShutdownOpen(true);
   };
 
@@ -338,7 +341,6 @@ export const DailyEntryForm: React.FC<Props> = ({
                 {allowEdit ? "Entry Saved" : "Locked"}
              </span>
            </div>
-           
            {allowEdit && (
             <button 
               onClick={() => setIsEditing(true)}
@@ -408,8 +410,6 @@ export const DailyEntryForm: React.FC<Props> = ({
       <div className="mb-2">
          {/* 1. HEADER ROW: Tags on Left, AI on Right */}
          <div className="flex justify-between items-end mb-3">
-            
-            {/* Left: Quick Tags */}
             <div className="flex flex-wrap gap-2">
                 {QUICK_TAGS.map(tag => (
                     <button
@@ -423,7 +423,6 @@ export const DailyEntryForm: React.FC<Props> = ({
                 ))}
             </div>
 
-            {/* Right: The AI "Magic Wand" (Distinct & Bigger) */}
             <button
                 onClick={handleAutoTag}
                 disabled={isAiLoading}
@@ -437,9 +436,7 @@ export const DailyEntryForm: React.FC<Props> = ({
                     whitespace-nowrap shrink-0
                 `}
             >
-                {/* Shiny Effect Overlay */}
                 <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-500 skew-x-12"></div>
-                
                 {isAiLoading ? (
                     <>
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -454,10 +451,9 @@ export const DailyEntryForm: React.FC<Props> = ({
             </button>
          </div>
 
-         {/* 2. The Text Area */}
          <TextArea
             id="workLog-input"
-            label="What I actually worked on"
+            label="Work Log"
             placeholder="Supports Markdown! Try typing ';;bug'"
             value={formData.workLog}
             onChange={e => handleTextChange('workLog', e.target.value, e)}
@@ -471,18 +467,59 @@ export const DailyEntryForm: React.FC<Props> = ({
       </div>
 
       <div className="grid md:grid-cols-2 gap-8 mt-6">
-        <TextArea
-            id="learningLog-input"
-            label="One thing I learned"
-            placeholder="A technical concept or pattern."
-            value={formData.learningLog}
-            onChange={e => handleTextChange('learningLog', e.target.value, e)}
-            onKeyDown={e => handleKeyDownTextArea(e, 'learningLog')}
-            maxLength={VALIDATION_LIMITS.LEARN_MAX}
-            warning={showValidationFeedback && validation.learnEmpty}
-            rows={4}
-        />
+        {/* LEARNING LOG SECTION (With Socratic AI) */}
+        <div className="flex flex-col gap-2">
+            <div className="flex justify-between items-end">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider font-sans">
+                    One thing I learned
+                </label>
+                <button 
+                    onClick={handleChallenge}
+                    disabled={isChallengeLoading || formData.learningLog.length < 3}
+                    className="text-[10px] flex items-center gap-1 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/30 px-2 py-1 rounded transition-colors disabled:opacity-50"
+                >
+                    {isChallengeLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Brain className="w-3 h-3" />}
+                    {isChallengeLoading ? "Generating Quiz..." : "Test My Knowledge"}
+                </button>
+            </div>
 
+            <TextArea
+                id="learningLog-input"
+                placeholder="A technical concept or pattern."
+                value={formData.learningLog}
+                onChange={e => handleTextChange('learningLog', e.target.value, e)}
+                onKeyDown={e => handleKeyDownTextArea(e, 'learningLog')}
+                maxLength={VALIDATION_LIMITS.LEARN_MAX}
+                warning={showValidationFeedback && validation.learnEmpty}
+                rows={4}
+            />
+
+            {/* 🦉 THE SOCRATIC CARD */}
+            {challenge && (
+                <div className="mt-2 bg-cyan-950/10 border border-cyan-900/30 rounded-lg overflow-hidden animate-slide-down">
+                    <div className="bg-cyan-900/20 p-3 flex gap-3 items-start">
+                        <HelpCircle className="w-5 h-5 text-cyan-600 shrink-0 mt-0.5" />
+                        <div className="space-y-2 w-full">
+                            <p className="text-sm font-bold text-cyan-800 dark:text-cyan-100 font-sans">
+                                {challenge.question}
+                            </p>
+                            <div className={`transition-all duration-300 overflow-hidden border-t border-cyan-900/20 ${showAnswer ? 'max-h-40 pt-3 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                <p className="text-xs font-mono text-cyan-700 dark:text-cyan-300">{challenge.answer}</p>
+                            </div>
+                            <button 
+                                onClick={() => setShowAnswer(!showAnswer)}
+                                className="text-[10px] uppercase font-bold tracking-widest text-cyan-500 hover:text-cyan-400 flex items-center gap-1 mt-2"
+                            >
+                                {showAnswer ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                                {showAnswer ? "Hide Answer" : "Reveal Answer"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+
+        {/* TIME LEAKS SECTION */}
         <div className="flex flex-col">
             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 font-sans">
                 Where my time leaked
@@ -512,14 +549,12 @@ export const DailyEntryForm: React.FC<Props> = ({
 
       {/* EFFORT & MOOD SECTION */}
       <div className="mt-8 mb-8 relative">
-        {/* The AI "Psychologist" Popup Bubble */}
         {aiObservation && (
             <div className="absolute -top-12 left-0 right-0 mx-auto w-max max-w-sm z-20 animate-in slide-in-from-bottom-2 fade-in">
                 <div className="bg-purple-900 text-purple-100 text-xs px-4 py-2 rounded-full shadow-lg border border-purple-700 flex items-center gap-2">
                     <BrainCircuit className="w-3 h-3 text-purple-300" />
                     "{aiObservation}"
                 </div>
-                {/* Little Triangle Pointer */}
                 <div className="w-2 h-2 bg-purple-900 border-r border-b border-purple-700 transform rotate-45 mx-auto -mt-1"></div>
             </div>
         )}
@@ -535,8 +570,6 @@ export const DailyEntryForm: React.FC<Props> = ({
                  <div className="flex items-center gap-2">
                     <span className="text-xs font-bold uppercase tracking-widest text-gray-500">Intensity & Mood</span>
                  </div>
-                 
-                 {/* 🧠 THE VIBE CHECK BUTTON */}
                  <button
                     onClick={handleVibeCheck}
                     disabled={vibeLoading}
@@ -552,7 +585,6 @@ export const DailyEntryForm: React.FC<Props> = ({
                 onChange={val => setFormData({ ...formData, effortRating: val })}
             />
             
-            {/* Mood Selector (Visual Feedback) */}
             <div className="flex justify-center gap-2 mt-4">
                 {['neutral', 'flow', 'stuck', 'chill'].map((m) => (
                     <button

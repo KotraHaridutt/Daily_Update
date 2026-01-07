@@ -330,7 +330,7 @@ const App: React.FC = () => {
                     {/* 🔗 DATA LINK CONNECTOR (Visual Flow) */}
                     <div className="flex flex-col items-center justify-center py-8 opacity-40 hover:opacity-100 transition-opacity">
                         {/* Top Line */}
-                        <div className="w-px h-8 bg-gradient-to-b from-gray-300 to-emerald-500 dark:from-gray-700"></div>
+                        <div className="w-px h-8 bg-linear-to-b from-gray-300 to-emerald-500 dark:from-gray-700"></div>
                         
                         {/* The Node */}
                         <div className="p-1.5 border border-emerald-500/30 rounded-full bg-gray-50 dark:bg-gray-950 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
@@ -338,7 +338,7 @@ const App: React.FC = () => {
                         </div>
                         
                         {/* Bottom Line */}
-                        <div className="w-px h-8 bg-gradient-to-b from-emerald-500 to-gray-300 dark:to-gray-700"></div>
+                        <div className="w-px h-8 bg-linear-to-b from-emerald-500 to-gray-300 dark:to-gray-700"></div>
                     </div>
 
                     <TheCartographer />

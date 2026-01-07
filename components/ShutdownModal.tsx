@@ -28,7 +28,7 @@ export const ShutdownModal: React.FC<Props> = ({ isOpen, onConfirm, onCancel, wo
   const hasText = context.trim().length > 0;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
       {/* Dark Backdrop */}
       <div 
         className="absolute inset-0 bg-black/90 backdrop-blur-md animate-fade-in"

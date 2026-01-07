@@ -102,3 +102,41 @@ export const generateQuest = async (workLog: string, mood: string): Promise<stri
     return "";
   }
 };
+
+// ... inside aiService.ts ...
+
+export interface ChallengeResult {
+  question: string;
+  answer: string;
+}
+
+export const generateChallenge = async (topic: string): Promise<ChallengeResult | null> => {
+  try {
+    if (!topic || topic.length < 3) return null;
+    if (!API_KEY) return null;
+
+    const prompt = `
+      You are a Senior Engineer conducting a technical interview.
+      The user claims to have learned: "${topic}".
+      
+      1. Generate ONE specific, tricky question to test their understanding of this concept. 
+         (Do not ask generic questions like "What is it?". Ask about edge cases, trade-offs, or internal mechanics).
+      2. Provide the correct answer concisely.
+
+      Return ONLY valid JSON:
+      {
+        "question": "If dependency array is empty, when does cleanup run?",
+        "answer": "It runs only when the component unmounts."
+      }
+    `;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const cleanJson = response.text().replace(/```json/g, '').replace(/```/g, '').trim();
+    
+    return JSON.parse(cleanJson) as ChallengeResult;
+  } catch (error) {
+    console.error("Challenge Gen Error:", error);
+    return null;
+  }
+};

@@ -63,7 +63,7 @@ export const useCartographer = () => {
         // Find tags (e.g., #python, #sql)
         const text = (entry.data.workLog + " " + entry.data.learningLog).toLowerCase();
         // Regex to find hashtags
-        const foundTags = text.match(/#[a-z0-9]+/g) || [];
+        const foundTags: string[] = text.match(/#[a-z0-9]+/g) || [];
 
         const voltage = entry.data.effortRating || 0;
         const mood = entry.data.mood || 'neutral';
