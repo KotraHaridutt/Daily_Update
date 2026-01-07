@@ -476,9 +476,15 @@ export const DailyEntryForm: React.FC<Props> = ({
                 <button 
                     onClick={handleChallenge}
                     disabled={isChallengeLoading || formData.learningLog.length < 3}
-                    className="text-[10px] flex items-center gap-1 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/30 px-2 py-1 rounded transition-colors disabled:opacity-50"
+                    className={`
+                        flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all
+                        ${formData.learningLog.length < 3 
+                            ? 'text-gray-300 bg-gray-100 dark:bg-gray-800 dark:text-gray-600 cursor-not-allowed'
+                            : 'bg-cyan-50 text-cyan-700 hover:bg-cyan-100 dark:bg-cyan-900/30 dark:text-cyan-300 dark:hover:bg-cyan-900/50 hover:shadow-sm'
+                        }
+                    `}
                 >
-                    {isChallengeLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Brain className="w-3 h-3" />}
+                    {isChallengeLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Brain className="w-3.5 h-3.5" />}
                     {isChallengeLoading ? "Generating Quiz..." : "Test My Knowledge"}
                 </button>
             </div>
@@ -493,33 +499,9 @@ export const DailyEntryForm: React.FC<Props> = ({
                 warning={showValidationFeedback && validation.learnEmpty}
                 rows={4}
             />
-
-            {/* 🦉 THE SOCRATIC CARD */}
-            {challenge && (
-                <div className="mt-2 bg-cyan-950/10 border border-cyan-900/30 rounded-lg overflow-hidden animate-slide-down">
-                    <div className="bg-cyan-900/20 p-3 flex gap-3 items-start">
-                        <HelpCircle className="w-5 h-5 text-cyan-600 shrink-0 mt-0.5" />
-                        <div className="space-y-2 w-full">
-                            <p className="text-sm font-bold text-cyan-800 dark:text-cyan-100 font-sans">
-                                {challenge.question}
-                            </p>
-                            <div className={`transition-all duration-300 overflow-hidden border-t border-cyan-900/20 ${showAnswer ? 'max-h-40 pt-3 opacity-100' : 'max-h-0 opacity-0'}`}>
-                                <p className="text-xs font-mono text-cyan-700 dark:text-cyan-300">{challenge.answer}</p>
-                            </div>
-                            <button 
-                                onClick={() => setShowAnswer(!showAnswer)}
-                                className="text-[10px] uppercase font-bold tracking-widest text-cyan-500 hover:text-cyan-400 flex items-center gap-1 mt-2"
-                            >
-                                {showAnswer ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                                {showAnswer ? "Hide Answer" : "Reveal Answer"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
 
-        {/* TIME LEAKS SECTION */}
+            {/* TIME LEAKS SECTION */}
         <div className="flex flex-col">
             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 font-sans">
                 Where my time leaked
@@ -546,6 +528,58 @@ export const DailyEntryForm: React.FC<Props> = ({
             />
         </div>
       </div>
+
+      {/* 🦉 FULL-WIDTH SOCRATIC CARD (Moved Outside the Grid) */}
+      {challenge && (
+        <div className="mt-6 animate-slide-down">
+            <div className="bg-white dark:bg-gray-800 border-l-4 border-cyan-500 shadow-sm rounded-r-md p-6 relative">
+                
+                {/* Close Button */}
+                <button 
+                    onClick={() => setChallenge(null)}
+                    className="absolute top-3 right-3 text-gray-300 hover:text-gray-500 dark:hover:text-gray-200 transition-colors p-1"
+                    title="Dismiss Challenge"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+
+                <div className="flex gap-4">
+                    <div className="mt-1 shrink-0">
+                        <HelpCircle className="w-6 h-6 text-cyan-600 dark:text-cyan-400" />
+                    </div>
+                    
+                    <div className="space-y-4 w-full">
+                        {/* Question */}
+                        <p className="text-base font-medium text-gray-800 dark:text-gray-100 font-sans leading-relaxed pr-8">
+                            {challenge.question}
+                        </p>
+                        
+                        {/* Hidden/Revealed Answer */}
+                        <div className={`
+                            transition-all duration-500 ease-in-out overflow-hidden
+                            ${showAnswer ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}
+                        `}>
+                            <div className="bg-cyan-50 dark:bg-cyan-900/20 p-4 rounded-md border border-cyan-100 dark:border-cyan-900/50 overflow-y-auto max-h-80 custom-scrollbar">
+                                <p className="text-sm font-mono text-cyan-800 dark:text-cyan-200 whitespace-pre-wrap leading-relaxed">
+                                    <span className="font-bold select-none mr-2 block mb-2 text-cyan-600 dark:text-cyan-400 uppercase tracking-widest text-xs">Answer Analysis:</span> 
+                                    {challenge.answer}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Reveal Toggle */}
+                        <button 
+                            onClick={() => setShowAnswer(!showAnswer)}
+                            className="text-xs uppercase font-bold tracking-widest text-gray-400 hover:text-cyan-600 dark:hover:text-cyan-400 flex items-center gap-2 transition-colors"
+                        >
+                            {showAnswer ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            {showAnswer ? "Hide Answer" : "Reveal Answer"}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
 
       {/* EFFORT & MOOD SECTION */}
       <div className="mt-8 mb-8 relative">
