@@ -10,7 +10,9 @@ import { TechRadar } from './components/TechRadar';
 import { Grimoire } from './components/Grimoire';
 import { BootSequence } from './components/BootSequence';
 import { TheCartographer } from './components/TheCartographer';
-import { Loader2, LayoutDashboard, Calendar as CalIcon, Moon, Sun, Search as SearchIcon, Maximize2, Minimize2, BarChart2, BookOpen } from 'lucide-react';
+
+// Added ArrowDown to imports
+import { Loader2, LayoutDashboard, Calendar as CalIcon, Moon, Sun, Search as SearchIcon, Maximize2, Minimize2, BarChart2, BookOpen, ArrowDown } from 'lucide-react';
 
 const App: React.FC = () => {
   const [stats, setStats] = useState<DailyStats | null>(null);
@@ -157,7 +159,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-ink dark:text-gray-100 flex flex-col lg:flex-row font-sans selection:bg-green-200 dark:selection:bg-green-900 transition-colors duration-300 relative">
       
-      {/* --- 🚀 BOOT OVERLAY ADDED HERE --- */}
+      {/* --- 🚀 BOOT OVERLAY --- */}
       {showBoot && bootData && (
           <BootSequence 
             context={bootData} 
@@ -324,6 +326,22 @@ const App: React.FC = () => {
                         onSummon={() => setView('grimoire')}
                         bootContext={showBoot === false && bootData ? bootData : undefined}
                     />
+
+                    {/* 🔗 DATA LINK CONNECTOR (Visual Flow) */}
+                    <div className="flex flex-col items-center justify-center py-8 opacity-40 hover:opacity-100 transition-opacity">
+                        {/* Top Line */}
+                        <div className="w-px h-8 bg-gradient-to-b from-gray-300 to-emerald-500 dark:from-gray-700"></div>
+                        
+                        {/* The Node */}
+                        <div className="p-1.5 border border-emerald-500/30 rounded-full bg-gray-50 dark:bg-gray-950 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+                            <ArrowDown className="w-3 h-3 text-emerald-500 animate-pulse" />
+                        </div>
+                        
+                        {/* Bottom Line */}
+                        <div className="w-px h-8 bg-gradient-to-b from-emerald-500 to-gray-300 dark:to-gray-700"></div>
+                    </div>
+
+                    <TheCartographer />
                 </>
             )}
         </div>

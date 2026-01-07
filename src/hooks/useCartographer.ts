@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { LedgerService } from '../services/ledgerService';
+import { LedgerService } from '@/services/ledgerService';
 
 export interface TracePoint {
   dayIndex: number; // 0 to 29 (Last 30 days)
   date: string;
-  voltage: number; // 0 to 1 (Effort)
-  isGap: boolean; // True if this is a "Lazarus Jump"
+  voltage: number; // Effort (0-5)
+  mood: 'flow' | 'stuck' | 'chill' | 'neutral';
+  isGap: boolean; // True if we need a "jumper wire" over a weekend
 }
 
 export interface CircuitThread {
@@ -15,11 +16,13 @@ export interface CircuitThread {
 }
 
 const COLORS = {
-  python: '#10b981', // Neon Green
-  sql: '#3b82f6',    // Electric Blue
-  react: '#f59e0b',  // Amber
-  js: '#ec4899',     // Pink
-  other: '#6366f1'   // Indigo
+  coding: '#10b981', // Emerald
+  bugfix: '#ef4444', // Red
+  learning: '#f59e0b', // Amber
+  meeting: '#6366f1', // Indigo
+  planning: '#8b5cf6', // Violet
+  review: '#ec4899', // Pink
+  other: '#94a3b8'   // Slate
 };
 
 export const useCartographer = () => {
@@ -28,18 +31,25 @@ export const useCartographer = () => {
 
   useEffect(() => {
     const loadData = async () => {
-      const store = await LedgerService.getStore();
+      const entries = await LedgerService.getAllEntries();
+      const store: Record<string, any> = {};
+      for (const e of entries) {
+        store[e.date] = e;
+      }
       const today = new Date();
-      const last30Days: string[] = [];
       const rawData: any[] = [];
+      const DAYS_TO_SHOW = 14; // View last 2 weeks for cleaner UI
 
-      // 1. Generate Last 30 Days
-      for (let i = 29; i >= 0; i--) {
+      // 1. Generate Last 14 Days (Reverse Chronological)
+      for (let i = DAYS_TO_SHOW - 1; i >= 0; i--) {
         const d = new Date();
         d.setDate(today.getDate() - i);
         const iso = d.toISOString().split('T')[0];
-        last30Days.push(iso);
-        rawData.push(store[iso] || null);
+        rawData.push({
+          date: iso,
+          data: store[iso] || null,
+          index: i
+        });
       }
 
       setGridData(rawData);
@@ -48,35 +58,40 @@ export const useCartographer = () => {
       const threadMap: Record<string, TracePoint[]> = {};
 
       rawData.forEach((entry, idx) => {
-        if (!entry) return;
+        if (!entry.data) return;
         
         // Find tags (e.g., #python, #sql)
-        const text = (entry.workLog + " " + entry.learningLog).toLowerCase();
-        const foundTags = text.match(/#[a-z0-9]+/g) || ['#other'];
+        const text = (entry.data.workLog + " " + entry.data.learningLog).toLowerCase();
+        // Regex to find hashtags
+        const foundTags = text.match(/#[a-z0-9]+/g) || [];
 
-        // Calculate Voltage (XP / 100)
-        const voltage = Math.min((entry.stats?.xp || 0) / 100, 1.2); 
+        const voltage = entry.data.effortRating || 0;
+        const mood = entry.data.mood || 'neutral';
 
         foundTags.forEach(tag => {
-          if (!threadMap[tag]) threadMap[tag] = [];
+          const cleanTag = tag.replace('#', '');
+          if (!threadMap[cleanTag]) threadMap[cleanTag] = [];
           
-          // Detect Lazarus Jump (Gap > 2 days)
-          const lastPoint = threadMap[tag][threadMap[tag].length - 1];
-          if (lastPoint && (idx - lastPoint.dayIndex) > 1) {
-             // Add a "Gap" point to tell the renderer to draw a jumper cable
-             threadMap[tag].push({ dayIndex: idx, date: last30Days[idx], voltage: 0, isGap: true });
-          }
-
-          threadMap[tag].push({ dayIndex: idx, date: last30Days[idx], voltage, isGap: false });
+          threadMap[cleanTag].push({ 
+              dayIndex: idx, 
+              date: entry.date, 
+              voltage, 
+              mood,
+              isGap: false 
+          });
         });
       });
 
       // 3. Format for Renderer
-      const builtThreads = Object.keys(threadMap).map(tag => ({
-        id: tag,
-        color: COLORS[tag.replace('#', '') as keyof typeof COLORS] || COLORS.other,
-        points: threadMap[tag]
-      }));
+      // Only keep threads that have at least 2 points (otherwise no line to draw)
+      const builtThreads = Object.keys(threadMap)
+        .filter(tag => threadMap[tag].length >= 1) 
+        .map((tag, i) => ({
+          id: tag,
+          // Cycle through colors based on tag name length or index
+          color: (COLORS as any)[tag] || Object.values(COLORS)[i % 5],
+          points: threadMap[tag]
+        }));
 
       setThreads(builtThreads);
     };
