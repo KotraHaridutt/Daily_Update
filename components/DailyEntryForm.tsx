@@ -3,11 +3,12 @@ import ReactMarkdown from 'react-markdown';
 import { LedgerEntry, VALIDATION_LIMITS } from '../types';
 import { TextArea, EffortSlider, ActionButton } from './UIComponents';
 import { LedgerService, getTodayISO } from '../services/ledgerService';
-import { ChevronDown, ChevronUp, Lock, AlertCircle, Edit2, Tag, Zap } from 'lucide-react';
+import { ChevronDown, ChevronUp, Lock, AlertCircle, Edit2, Tag, Zap, Sparkles, Loader2 } from 'lucide-react';
 import { ShutdownModal } from './ShutdownModal';
 import { useAudioBiome } from './hooks/useAudioBiome';
 import { AudioController } from './AudioController';
 import { PanicMode } from './PanicMode';
+import { generateSmartTags } from '../services/aiService'; // <--- IMPORT AI SERVICE
 
 interface Props {
   onSaved: () => void;
@@ -68,6 +69,9 @@ export const DailyEntryForm: React.FC<Props> = ({
   const [isShutdownOpen, setIsShutdownOpen] = useState(false);
   const [isPanicOpen, setIsPanicOpen] = useState(false);
   
+  // AI STATE
+  const [isAiLoading, setIsAiLoading] = useState(false);
+
   const [formData, setFormData] = useState({
     workLog: '',
     learningLog: '',
@@ -87,13 +91,12 @@ export const DailyEntryForm: React.FC<Props> = ({
 
   useEffect(() => {
     if (bootContext && !initialData) {
-        // If we have a mission from yesterday, and today is empty, PRE-FILL IT
         setFormData(prev => ({
             ...prev,
             workLog: `**🚀 Yesterday's Promise:**\n${bootContext}\n\n`,
             nextDayContext: ''
         }));
-        setIsEditing(true); // Auto-open edit mode
+        setIsEditing(true); 
     }
   }, [bootContext, initialData]);
 
@@ -129,7 +132,6 @@ export const DailyEntryForm: React.FC<Props> = ({
     if (!isEditing) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-        // Level 2: Macros
         if (e.altKey) {
             if (['1', '2', '3', '4', '5'].includes(e.key)) {
                 e.preventDefault();
@@ -145,7 +147,6 @@ export const DailyEntryForm: React.FC<Props> = ({
             }
         }
         
-        // Save Shortcut
         if ((e.metaKey || e.ctrlKey) && e.key === 's') {
             e.preventDefault();
             handleSubmit();
@@ -168,15 +169,13 @@ export const DailyEntryForm: React.FC<Props> = ({
     return { workShort, workRemaining, learnEmpty, leakEmpty, effortZero, isValid };
   }, [formData]);
 
-  // --- SNIPPET & MARKDOWN HANDLER ---
   const handleTextChange = (field: keyof typeof formData, val: string, e: React.ChangeEvent<HTMLTextAreaElement>) => {
     triggerTyping();
 
-    // Check for Snippets (Level 3)
     if (val.endsWith(';;summon') && onSummon) {
-        const cleanVal = val.slice(0, -8); // remove ';;summon'
+        const cleanVal = val.slice(0, -8); 
         setFormData({ ...formData, [field]: cleanVal });
-        onSummon(); // Trigger the view switch
+        onSummon(); 
         return;
     }
     if (val.endsWith(';;panic')) {
@@ -194,7 +193,6 @@ export const DailyEntryForm: React.FC<Props> = ({
     setFormData({ ...formData, [field]: finalVal });
   };
 
-  // Helper for Ctrl+B (Bold)
   const handleKeyDownTextArea = (e: React.KeyboardEvent<HTMLTextAreaElement>, field: keyof typeof formData) => {
     triggerTyping();
     if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
@@ -207,7 +205,6 @@ export const DailyEntryForm: React.FC<Props> = ({
         const selected = val.substring(start, end);
         const after = val.substring(end);
         
-        // Wrap selected text in bold
         const newVal = `${before}**${selected}**${after}`;
         setFormData({ ...formData, [field]: newVal });
     }
@@ -222,6 +219,31 @@ export const DailyEntryForm: React.FC<Props> = ({
     });
   };
 
+  // --- 🤖 AI AUTO TAG HANDLER ---
+  const handleAutoTag = async () => {
+      // 1. Guard clause: Don't run if text is too short
+      if (formData.workLog.length < 10) {
+          alert("Please write a bit more before asking AI to tag!");
+          return;
+      }
+
+      setIsAiLoading(true);
+      
+      // 2. Call the Service
+      const newTags = await generateSmartTags(formData.workLog);
+      
+      // 3. Append tags to WorkLog
+      if (newTags.length > 0) {
+          const tagsString = newTags.join(' ');
+          appendText('workLog', tagsString);
+      } else {
+          // If AI fails or returns nothing (maybe API key is wrong)
+          alert("AI couldn't generate tags. Check console for API Key errors.");
+      }
+
+      setIsAiLoading(false);
+  };
+
   const handlePanicClose = (report: string) => {
     setIsPanicOpen(false);
     if (report) {
@@ -232,7 +254,6 @@ export const DailyEntryForm: React.FC<Props> = ({
     }
   };
 
-  // This runs ONLY after you type your "Shutdown Promise" in the modal
   const handleFinalSave = async (context: string) => {
     setIsSaving(true);
     try {
@@ -242,9 +263,9 @@ export const DailyEntryForm: React.FC<Props> = ({
         nextDayContext: context
       });
       
-      setIsShutdownOpen(false); // Close modal
-      setIsEditing(false);      // Close form
-      onSaved();                // Tell App.tsx to reload
+      setIsShutdownOpen(false); 
+      setIsEditing(false);      
+      onSaved();                
     } catch (error) {
       alert("Failed to save. Check console.");
     } finally {
@@ -255,25 +276,17 @@ export const DailyEntryForm: React.FC<Props> = ({
   const handleSubmit = async () => {
     setHasAttemptedSubmit(true);
     
-    // 1. Validation
     if (!validation.isValid) return;
     
-    // 2. --- ⚔️ BOSS FIGHT LOGIC ⚔️ ---
     if (formData.workLog.toUpperCase().includes('#PROJECT_LAUNCH')) {
         const lootXP = 5000 + (formData.workLog.length * 2);
-        
         const confirmLaunch = window.confirm(
             `⚔️ BOSS FIGHT DETECTED: #PROJECT_LAUNCH ⚔️\n\n` +
-            `You are about to deploy a major milestone.\n` +
-            `Estimated Loot Drop: +${lootXP} XP\n\n` +
             `Are you ready to commit?`
         );
-        
         if (!confirmLaunch) return;
     }
-    // ------------------------------------------------
 
-    // 3. Instead of saving, we open the "System Halt" Terminal
     setIsShutdownOpen(true);
   };
 
@@ -360,18 +373,55 @@ export const DailyEntryForm: React.FC<Props> = ({
       </div>
 
       <div className="mb-2">
-         <div className="flex flex-wrap gap-2 mb-3">
-            {QUICK_TAGS.map(tag => (
-                <button
-                    key={tag}
-                    onClick={() => appendText('workLog', tag)}
-                    className="flex items-center gap-1 px-2 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 text-[10px] font-bold uppercase tracking-wider rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
-                >
-                    <Tag className="w-3 h-3" />
-                    {tag}
-                </button>
-            ))}
+         {/* 1. HEADER ROW: Tags on Left, AI on Right */}
+         <div className="flex justify-between items-end mb-3">
+            
+            {/* Left: Quick Tags */}
+            <div className="flex flex-wrap gap-2">
+                {QUICK_TAGS.map(tag => (
+                    <button
+                        key={tag}
+                        onClick={() => appendText('workLog', tag)}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-[11px] font-bold uppercase tracking-wider rounded-lg border border-blue-100 dark:border-blue-900 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-all hover:scale-105 active:scale-95"
+                    >
+                        <Tag className="w-3 h-3" />
+                        {tag}
+                    </button>
+                ))}
+            </div>
+
+            {/* Right: The AI "Magic Wand" (Distinct & Bigger) */}
+            <button
+                onClick={handleAutoTag}
+                disabled={isAiLoading}
+                className={`
+                    relative group overflow-hidden flex items-center gap-2 px-4 py-2 
+                    bg-gradient-to-r from-purple-600 to-indigo-600 
+                    text-white text-xs font-bold uppercase tracking-widest rounded-lg 
+                    shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 
+                    transition-all hover:-translate-y-0.5 active:translate-y-0 active:shadow-none
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                    whitespace-nowrap shrink-0
+                `}
+            >
+                {/* Shiny Effect Overlay */}
+                <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500 skew-x-12"></div>
+                
+                {isAiLoading ? (
+                    <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Analyzing...</span>
+                    </>
+                ) : (
+                    <>
+                        <Sparkles className="w-4 h-4 text-yellow-300" />
+                        <span>AI Auto-Tag</span>
+                    </>
+                )}
+            </button>
          </div>
+
+         {/* 2. The Text Area */}
          <TextArea
             id="workLog-input"
             label="What I actually worked on"
@@ -481,7 +531,6 @@ export const DailyEntryForm: React.FC<Props> = ({
             intensity={intensity}
         />
 
-        {/* Panic Mode Overlay (Placed outside button for correct DOM structure) */}
         <PanicMode 
             isOpen={isPanicOpen} 
             onClose={handlePanicClose} 
