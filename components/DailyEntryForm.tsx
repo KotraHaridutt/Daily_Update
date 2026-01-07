@@ -8,7 +8,8 @@ import { ShutdownModal } from './ShutdownModal';
 import { useAudioBiome } from './hooks/useAudioBiome';
 import { AudioController } from './AudioController';
 import { PanicMode } from './PanicMode';
-import { generateSmartTags } from '../services/aiService'; // <--- IMPORT AI SERVICE
+import { generateSmartTags, analyzeVibe, VibeCheckResult } from '../services/aiService'; 
+import { BrainCircuit } from 'lucide-react';
 
 interface Props {
   onSaved: () => void;
@@ -71,6 +72,8 @@ export const DailyEntryForm: React.FC<Props> = ({
   
   // AI STATE
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [vibeLoading, setVibeLoading] = useState(false);
+  const [aiObservation, setAiObservation] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     workLog: '',
@@ -78,7 +81,8 @@ export const DailyEntryForm: React.FC<Props> = ({
     timeLeakLog: '',
     effortRating: 0,
     freeThought: '',
-    nextDayContext: ''
+    nextDayContext: '',
+    mood: 'neutral' as 'flow' | 'stuck' | 'chill' | 'neutral'
   });
   
   const [showFreeThought, setShowFreeThought] = useState(false);
@@ -88,6 +92,34 @@ export const DailyEntryForm: React.FC<Props> = ({
   // Refs for Focus Macros
   const workRef = useRef<HTMLTextAreaElement>(null);
   const learnRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleVibeCheck = async () => {
+      if (formData.workLog.length < 10) {
+          alert("Write more text first!");
+          return;
+      }
+      
+      setVibeLoading(true);
+      setAiObservation(null); // Reset previous message
+
+      const result = await analyzeVibe(formData.workLog);
+      
+      if (result) {
+          // Update Form Data automatically
+          setFormData(prev => ({
+              ...prev,
+              mood: result.mood,
+              effortRating: result.effort
+          }));
+
+          // Show the AI's "Psychologist" note
+          setAiObservation(result.observation);
+          
+          // Hide note after 5 seconds
+          setTimeout(() => setAiObservation(null), 5000);
+      }
+      setVibeLoading(false);
+  };
 
   useEffect(() => {
     if (bootContext && !initialData) {
@@ -108,11 +140,12 @@ export const DailyEntryForm: React.FC<Props> = ({
         timeLeakLog: initialData.timeLeakLog,
         effortRating: initialData.effortRating,
         freeThought: initialData.freeThought || '',
-        nextDayContext: initialData.nextDayContext || ''
+        nextDayContext: initialData.nextDayContext || '',
+        mood: 'neutral' as 'flow' | 'stuck' | 'chill' | 'neutral'
       });
       if (initialData.freeThought) setShowFreeThought(true);
     } else {
-      setFormData({ workLog: '', learningLog: '', timeLeakLog: '', effortRating: 0, freeThought: '', nextDayContext: '' });
+      setFormData({ workLog: '', learningLog: '', timeLeakLog: '', effortRating: 0, freeThought: '', nextDayContext: '', mood: 'neutral' as 'flow' | 'stuck' | 'chill' | 'neutral' });
       setShowFreeThought(false);
     }
   }, [initialData]); 
@@ -405,7 +438,7 @@ export const DailyEntryForm: React.FC<Props> = ({
                 `}
             >
                 {/* Shiny Effect Overlay */}
-                <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500 skew-x-12"></div>
+                <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-500 skew-x-12"></div>
                 
                 {isAiLoading ? (
                     <>
@@ -477,12 +510,66 @@ export const DailyEntryForm: React.FC<Props> = ({
         </div>
       </div>
 
-      <div className="mt-8 mb-8">
-        <div className={showValidationFeedback && validation.effortZero ? "p-2 border border-orange-200 dark:border-orange-800 rounded-lg bg-orange-50/50 dark:bg-orange-900/20" : ""}>
+      {/* EFFORT & MOOD SECTION */}
+      <div className="mt-8 mb-8 relative">
+        {/* The AI "Psychologist" Popup Bubble */}
+        {aiObservation && (
+            <div className="absolute -top-12 left-0 right-0 mx-auto w-max max-w-sm z-20 animate-in slide-in-from-bottom-2 fade-in">
+                <div className="bg-purple-900 text-purple-100 text-xs px-4 py-2 rounded-full shadow-lg border border-purple-700 flex items-center gap-2">
+                    <BrainCircuit className="w-3 h-3 text-purple-300" />
+                    "{aiObservation}"
+                </div>
+                {/* Little Triangle Pointer */}
+                <div className="w-2 h-2 bg-purple-900 border-r border-b border-purple-700 transform rotate-45 mx-auto -mt-1"></div>
+            </div>
+        )}
+
+        <div className={`
+             p-4 border rounded-xl transition-colors duration-500
+             ${formData.mood === 'flow' ? 'bg-emerald-50/50 border-emerald-200 dark:bg-emerald-900/10 dark:border-emerald-800' : ''}
+             ${formData.mood === 'stuck' ? 'bg-red-50/50 border-red-200 dark:bg-red-900/10 dark:border-red-800' : ''}
+             ${formData.mood === 'chill' ? 'bg-blue-50/50 border-blue-200 dark:bg-blue-900/10 dark:border-blue-800' : ''}
+             ${formData.mood === 'neutral' ? 'bg-gray-50/50 border-gray-200 dark:bg-gray-800/50 dark:border-gray-700' : ''}
+        `}>
+            <div className="flex justify-between items-center mb-4">
+                 <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold uppercase tracking-widest text-gray-500">Intensity & Mood</span>
+                 </div>
+                 
+                 {/* 🧠 THE VIBE CHECK BUTTON */}
+                 <button
+                    onClick={handleVibeCheck}
+                    disabled={vibeLoading}
+                    className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/30 px-3 py-1 rounded-full transition-colors disabled:opacity-50"
+                 >
+                    {vibeLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <BrainCircuit className="w-3 h-3" />}
+                    {vibeLoading ? "Reading Mind..." : "Analyze Vibe"}
+                 </button>
+            </div>
+
             <EffortSlider
-            value={formData.effortRating}
-            onChange={val => setFormData({ ...formData, effortRating: val })}
+                value={formData.effortRating}
+                onChange={val => setFormData({ ...formData, effortRating: val })}
             />
+            
+            {/* Mood Selector (Visual Feedback) */}
+            <div className="flex justify-center gap-2 mt-4">
+                {['neutral', 'flow', 'stuck', 'chill'].map((m) => (
+                    <button
+                        key={m}
+                        onClick={() => setFormData({...formData, mood: m as any})}
+                        className={`
+                            px-3 py-1 rounded text-[10px] uppercase font-bold transition-all
+                            ${formData.mood === m 
+                                ? 'bg-gray-900 text-white dark:bg-white dark:text-black scale-105 shadow-md' 
+                                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                            }
+                        `}
+                    >
+                        {m}
+                    </button>
+                ))}
+            </div>
         </div>
       </div>
 
