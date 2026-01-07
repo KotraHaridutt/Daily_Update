@@ -609,6 +609,8 @@ export const DailyEntryForm: React.FC<Props> = ({
           isOpen={isShutdownOpen}
           onConfirm={handleFinalSave}
           onCancel={() => setIsShutdownOpen(false)}
+          workLog={formData.workLog}
+          mood={formData.mood}
         />
         
         <AudioController 

@@ -74,3 +74,31 @@ export const analyzeVibe = async (text: string): Promise<VibeCheckResult | null>
     return null;
   }
 };
+
+
+export const generateQuest = async (workLog: string, mood: string): Promise<string> => {
+  try {
+    if (!workLog || workLog.length < 10) return "";
+    if (!API_KEY) return "";
+
+    const prompt = `
+      Act as a Senior Engineering Manager or RPG Quest Giver.
+      Based on the user's work log today and their mood (${mood}), assign a SINGLE, high-impact mission for tomorrow.
+      
+      Rules:
+      1. If mood is 'stuck', suggest a specific debugging angle or a fresh start.
+      2. If mood is 'flow', suggest the next logical feature extension.
+      3. Keep it under 15 words. Imperative tense (e.g., "Refactor the X component").
+      4. No fluff. No "Tomorrow you should...". Just the mission.
+
+      Work Log: "${workLog}"
+    `;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return response.text().trim();
+  } catch (error) {
+    console.error("Quest Generation Error:", error);
+    return "";
+  }
+};
