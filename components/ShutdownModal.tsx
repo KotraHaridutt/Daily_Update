@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Power, Terminal, Loader2, Sparkles, ChevronLeft, Command } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom'; // 👈 IMPORT THIS
+import { Terminal, Loader2, Sparkles, ChevronLeft, Command } from 'lucide-react';
 import { generateQuest } from '../services/aiService';
 
 interface Props {
@@ -13,8 +14,14 @@ interface Props {
 export const ShutdownModal: React.FC<Props> = ({ isOpen, onConfirm, onCancel, workLog = '', mood = 'neutral' }) => {
   const [context, setContext] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
+  if (!isOpen || !mounted) return null;
 
   const handleGenerate = async () => {
     setIsGenerating(true);
@@ -27,16 +34,18 @@ export const ShutdownModal: React.FC<Props> = ({ isOpen, onConfirm, onCancel, wo
 
   const hasText = context.trim().length > 0;
 
-  return (
-    <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
-      {/* Dark Backdrop */}
+  // 👇 THE FIX: createPortal moves this div to document.body
+  return createPortal(
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+      
+      {/* Backdrop with extreme blur and darkness */}
       <div 
-        className="absolute inset-0 bg-black/90 backdrop-blur-md animate-fade-in"
+        className="absolute inset-0 bg-black/95 backdrop-blur-xl animate-fade-in"
         onClick={onCancel}
       />
       
       {/* TERMINAL WINDOW */}
-      <div className="relative w-full max-w-xl bg-black border border-green-900/50 shadow-[0_0_30px_rgba(34,197,94,0.1)] font-mono text-sm overflow-hidden animate-scale-up">
+      <div className="relative w-full max-w-xl bg-black border border-green-900/50 shadow-[0_0_100px_rgba(34,197,94,0.3)] font-mono text-sm overflow-hidden animate-scale-up z-[99999]">
         
         {/* Terminal Header */}
         <div className="bg-green-950/20 border-b border-green-900/30 p-2 flex items-center justify-between">
@@ -65,10 +74,9 @@ export const ShutdownModal: React.FC<Props> = ({ isOpen, onConfirm, onCancel, wo
                 <div className="flex justify-between items-end mb-2">
                     <label className="text-green-500 font-bold uppercase tracking-wider text-xs flex items-center gap-2">
                         <span className="animate-pulse">_</span> 
-                        Define Tomorrow's Mission:
+                        DEFINE TOMORROW'S MISSION:
                     </label>
                     
-                    {/* AI Button */}
                     <button 
                         onClick={handleGenerate}
                         disabled={isGenerating || workLog.length < 10}
@@ -89,14 +97,15 @@ export const ShutdownModal: React.FC<Props> = ({ isOpen, onConfirm, onCancel, wo
                         rows={2}
                         autoFocus
                     />
+                    {context.length === 0 && (
+                        <span className="absolute left-7 top-3.5 w-1.5 h-4 bg-green-500/50 animate-pulse pointer-events-none"></span>
+                    )}
                 </div>
             </div>
         </div>
 
-        {/* TERMINAL FOOTER / ACTIONS */}
+        {/* TERMINAL FOOTER */}
         <div className="p-4 bg-black border-t border-green-900/30 flex items-center justify-between">
-            
-            {/* LEFT: Back Button */}
             <button 
                 onClick={onCancel}
                 className="group flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-green-400 transition-all uppercase tracking-widest text-xs font-bold"
@@ -105,10 +114,8 @@ export const ShutdownModal: React.FC<Props> = ({ isOpen, onConfirm, onCancel, wo
                 Edit
             </button>
             
-            {/* RIGHT: Dynamic Action Button */}
             <div className="flex items-center gap-4">
                 {hasText ? (
-                    // COMMIT BUTTON (Green - "Success" feel)
                     <button 
                         onClick={() => onConfirm(context)}
                         className="flex items-center gap-2 px-6 py-2 bg-green-700 hover:bg-green-600 text-black font-bold uppercase tracking-widest text-xs rounded-sm shadow-[0_0_15px_rgba(21,128,61,0.3)] transition-all hover:shadow-[0_0_20px_rgba(21,128,61,0.5)]"
@@ -117,7 +124,6 @@ export const ShutdownModal: React.FC<Props> = ({ isOpen, onConfirm, onCancel, wo
                         Set_Objective & Exit
                     </button>
                 ) : (
-                    // SKIP BUTTON (Neutral Gray)
                     <button 
                         onClick={() => onConfirm(context)}
                         className="flex items-center gap-2 px-6 py-2 bg-transparent hover:bg-gray-900 text-gray-500 hover:text-gray-300 font-bold uppercase tracking-widest text-xs border border-gray-800 hover:border-gray-600 transition-all rounded-sm"
@@ -128,6 +134,7 @@ export const ShutdownModal: React.FC<Props> = ({ isOpen, onConfirm, onCancel, wo
             </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body // 👈 TELEPORT TARGET
   );
 };
